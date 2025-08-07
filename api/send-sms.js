@@ -30,10 +30,14 @@ export default async function handler(req, res) {
     console.log('Sending to Mobile Message API:', {
       endpoint: apiConfig.endpoint,
       messageCount: messages.length,
-      firstMessage: messages[0]
+      firstMessage: messages[0],
+      credentials: `${apiConfig.key}:***`
     });
 
     // Make the API call to Mobile Message
+    console.log('Making fetch request to:', apiConfig.endpoint);
+    console.log('Request payload:', JSON.stringify(payload, null, 2));
+    
     const response = await fetch(apiConfig.endpoint, {
       method: 'POST',
       headers: {
@@ -42,6 +46,12 @@ export default async function handler(req, res) {
         'Accept': 'application/json'
       },
       body: JSON.stringify(payload)
+    });
+    
+    console.log('Response received:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries())
     });
 
     const responseData = await response.json();
