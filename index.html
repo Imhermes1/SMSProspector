@@ -19,6 +19,7 @@
                 <li><a href="#messenger" class="nav-link" data-section="messenger">💬 Messenger</a></li>
                 <li><a href="#send-sms" class="nav-link" data-section="send-sms">📱 Send SMS</a></li>
                 <li><a href="#campaigns" class="nav-link" data-section="campaigns">📈 Campaigns</a></li>
+                <li><a href="#messages-history" class="nav-link" data-section="messages-history">📝 Messages History</a></li>
                 <li><a href="#opt-outs" class="nav-link" data-section="opt-outs">🚫 Opt-Outs</a></li>
                 <li><a href="#settings" class="nav-link" data-section="settings">⚙️ Settings</a></li>
             </ul>
@@ -285,6 +286,32 @@
                             <tbody id="campaigns-table-body"></tbody>
                         </table>
                     </div>
+                </div>
+            </section>
+
+            <!-- Messages History Section -->
+            <section id="messages-history" class="section">
+                <div class="section-header">
+                    <h2>Messages History</h2>
+                    <div class="section-actions">
+                        <button class="btn btn--outline" onclick="exportMessagesHistory()">Export</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Contact</th>
+                                <th>Message</th>
+                                <th>Status</th>
+                                <th>Sent At</th>
+                                <th>Campaign</th>
+                            </tr>
+                        </thead>
+                        <tbody id="messages-history-table-body">
+                            <!-- Messages will be rendered here -->
+                        </tbody>
+                    </table>
                 </div>
             </section>
 

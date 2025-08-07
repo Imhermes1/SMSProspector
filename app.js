@@ -117,6 +117,7 @@ function navigateToSection(sectionId) {
     'messenger': 'Messenger',
     'send-sms': 'Send SMS',
     'campaigns': 'Campaigns',
+    'messages-history': 'Messages History',
     'opt-outs': 'Opt-Outs',
     'settings': 'Settings'
   };
@@ -135,6 +136,8 @@ function navigateToSection(sectionId) {
     renderMessenger();
   } else if (sectionId === 'campaigns') {
     renderCampaignsTable();
+  } else if (sectionId === 'messages-history') {
+    renderMessagesHistoryTable();
   } else if (sectionId === 'opt-outs') {
     renderOptOutsTable();
   } else if (sectionId === 'send-sms') {
@@ -776,21 +779,52 @@ function sendMessage() {
     .then(response => {
       console.log('API Response:', response);
       
-      // Add messages to app state
+      // Add messages to app state and conversations
       const messageId = appState.messages.length + 1;
       recipientContacts.forEach((contact, index) => {
-        appState.messages.push({
+        // Add to messages array
+        const sentMessage = {
           id: messageId + index,
           contactId: contact.id,
           message: messageValue,
           status: 'delivered',
           sentAt: new Date().toISOString(),
           campaign: 'Manual Send'
-        });
+        };
+        appState.messages.push(sentMessage);
+        
+        // Add to conversation
+        let conversation = getConversationByPhone(contact.phone);
+        if (!conversation) {
+          // Create new conversation
+          const newConversationId = appState.conversations.length > 0 ? Math.max(...appState.conversations.map(c => c.id)) + 1 : 1;
+          conversation = {
+            id: newConversationId,
+            contactId: contact.id,
+            messages: [],
+            unreadCount: 0,
+            lastActivity: new Date().toISOString()
+          };
+          appState.conversations.push(conversation);
+        }
+        
+        // Add sent message to conversation
+        const newMessageId = Math.max(...conversation.messages.map(m => m.id), 0) + 1;
+        const conversationMessage = {
+          id: newMessageId,
+          message: messageValue,
+          status: 'delivered',
+          sentAt: new Date().toISOString(),
+          direction: 'outbound'
+        };
+        
+        conversation.messages.push(conversationMessage);
+        conversation.lastActivity = conversationMessage.sentAt;
       });
       
-      // Save messages to storage
+      // Save messages and conversations to storage
       saveMessagesToStorage();
+      saveConversationsToStorage();
       
       showNotification(`Message sent successfully to ${recipients.length} recipient(s)`, 'success');
       
@@ -1432,6 +1466,9 @@ function sendReply() {
   selectedConversation.messages.push(newMessage);
   selectedConversation.lastActivity = newMessage.sentAt;
   
+  // Save conversations to storage
+  saveConversationsToStorage();
+  
   // Clear input
   messageInput.value = '';
   
@@ -1950,6 +1987,7 @@ window.testApiConnection = testApiConnection;
   window.handleIncomingSMS = handleIncomingSMS;
   window.forceRefreshApiStatus = forceRefreshApiStatus;
   window.addIncomingMessageManually = addIncomingMessageManually;
+  window.exportMessagesHistory = exportMessagesHistory;
 
 // Close modals when clicking outside
 document.addEventListener('click', function(e) {
@@ -2397,4 +2435,60 @@ function updateConnectionStatus(isConnected) {
       statusIndicator.title = 'Real-time messaging disconnected';
     }
   }
+}
+
+// Messages History Functions
+function renderMessagesHistoryTable() {
+  const tbody = document.getElementById('messages-history-table-body');
+  if (!tbody) return;
+  
+  tbody.innerHTML = appState.messages.map(message => {
+    const contact = appState.contacts.find(c => c.id === message.contactId);
+    const contactName = contact ? `${contact.firstName} ${contact.lastName}` : 'Unknown Contact';
+    const contactPhone = contact ? contact.phone : 'Unknown';
+    
+    return `
+      <tr>
+        <td>
+          <div class="contact-info">
+            <div class="contact-name">${contactName}</div>
+            <div class="contact-phone">${contactPhone}</div>
+          </div>
+        </td>
+        <td>
+          <div class="message-preview">${message.message.substring(0, 50)}${message.message.length > 50 ? '...' : ''}</div>
+        </td>
+        <td>
+          <span class="status-badge status-${message.status}">${message.status}</span>
+        </td>
+        <td>${new Date(message.sentAt).toLocaleString()}</td>
+        <td>${message.campaign || 'Manual Send'}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function exportMessagesHistory() {
+  const csv = generateMessagesCSV(appState.messages);
+  downloadCSV(csv, 'messages-history.csv');
+}
+
+function generateMessagesCSV(messages) {
+  const headers = ['Contact Name', 'Phone', 'Message', 'Status', 'Sent At', 'Campaign'];
+  const rows = messages.map(message => {
+    const contact = appState.contacts.find(c => c.id === message.contactId);
+    const contactName = contact ? `${contact.firstName} ${contact.lastName}` : 'Unknown Contact';
+    const contactPhone = contact ? contact.phone : 'Unknown';
+    
+    return [
+      contactName,
+      contactPhone,
+      message.message,
+      message.status,
+      new Date(message.sentAt).toLocaleString(),
+      message.campaign || 'Manual Send'
+    ];
+  });
+  
+  return [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
 }

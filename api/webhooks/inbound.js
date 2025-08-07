@@ -4,14 +4,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { from, message, timestamp } = req.body;
+    const { to, message, sender, received_at, type, original_message_id, original_custom_ref } = req.body;
     
     // Log the incoming message
-    console.log('Inbound message received:', { from, message, timestamp });
+    console.log('Inbound message received:', { to, message, sender, received_at, type, original_message_id, original_custom_ref });
     
     // Validate required fields
-    if (!from || !message) {
-      console.error('Missing required fields:', { from, message });
+    if (!to || !message || !sender) {
+      console.error('Missing required fields:', { to, message, sender });
       return res.status(400).json({ error: 'Missing required fields' });
     }
     
@@ -39,9 +39,13 @@ export default async function handler(req, res) {
       // Add new message
       const newMessage = {
         id: Date.now(),
-        from: from,
+        from: sender, // Mobile Message sends 'sender' field
+        to: to,
         message: message,
-        timestamp: timestamp || new Date().toISOString(),
+        timestamp: received_at || new Date().toISOString(),
+        type: type || 'inbound',
+        original_message_id: original_message_id,
+        original_custom_ref: original_custom_ref,
         processed: false
       };
       
@@ -69,19 +73,21 @@ export default async function handler(req, res) {
     const messageUpper = message.toUpperCase().trim();
     
     if (optOutKeywords.includes(messageUpper)) {
-      console.log(`Opt-out request from ${from}: ${messageUpper}`);
+      console.log(`Opt-out request from ${sender}: ${messageUpper}`);
       // Handle opt-out logic here
     }
     
     // For now, just log the message
-    console.log(`Message from ${from}: ${message}`);
+    console.log(`Message from ${sender} to ${to}: ${message}`);
     
     res.status(200).json({ 
       message: 'OK',
       received: {
-        from,
+        from: sender,
+        to: to,
         message,
-        timestamp: timestamp || new Date().toISOString()
+        timestamp: received_at || new Date().toISOString(),
+        type: type || 'inbound'
       }
     });
     
