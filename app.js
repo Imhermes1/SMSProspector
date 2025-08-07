@@ -1,37 +1,36 @@
 // Application State
 let appState = {
-  contacts: [
-    {id: 1, firstName: "John", lastName: "Smith", phone: "+61412345678", email: "john.smith@email.com", address: "123 Collins St", suburb: "Melbourne", status: "active", tags: ["customer", "vip"], dateAdded: "2025-07-15"},
-    {id: 2, firstName: "Sarah", lastName: "Johnson", phone: "+61423456789", email: "sarah.j@email.com", address: "456 Bourke St", suburb: "Melbourne", status: "active", tags: ["prospect"], dateAdded: "2025-07-20"},
-    {id: 3, firstName: "Michael", lastName: "Brown", phone: "+61434567890", email: "m.brown@email.com", address: "789 Chapel St", suburb: "South Yarra", status: "opted_out", tags: ["customer"], dateAdded: "2025-07-10"},
-    {id: 4, firstName: "Emma", lastName: "Wilson", phone: "+61445678901", email: "emma.wilson@email.com", address: "321 Smith St", suburb: "Collingwood", status: "active", tags: ["customer", "local"], dateAdded: "2025-07-25"},
-    {id: 5, firstName: "David", lastName: "Jones", phone: "+61456789012", email: "david.jones@email.com", address: "654 High St", suburb: "Armadale", status: "active", tags: ["prospect", "referral"], dateAdded: "2025-07-18"},
-    {id: 6, firstName: "Lisa", lastName: "Garcia", phone: "+61467890123", email: "lisa.garcia@email.com", address: "987 Brunswick St", suburb: "Fitzroy", status: "active", tags: ["customer"], dateAdded: "2025-07-22"},
-    {id: 7, firstName: "James", lastName: "Miller", phone: "+61478901234", email: "james.miller@email.com", address: "147 Swan St", suburb: "Richmond", status: "opted_out", tags: ["prospect"], dateAdded: "2025-07-12"}
-  ],
-  messages: [
-    {id: 1, contactId: 1, message: "Hi John, your appointment is confirmed for tomorrow at 2pm.", status: "delivered", sentAt: "2025-08-05T10:30:00", campaign: "Appointment Reminders"},
-    {id: 2, contactId: 2, message: "Sarah, thanks for your interest! Here's the information you requested.", status: "delivered", sentAt: "2025-08-05T14:15:00", campaign: "Follow-up"},
-    {id: 3, contactId: 4, message: "Emma, special offer just for you - 20% off this weekend!", status: "delivered", sentAt: "2025-08-05T16:45:00", campaign: "Promotions"}
-  ],
-  optOuts: [
-    {id: 1, contactId: 3, reason: "STOP", dateOptedOut: "2025-08-03T09:20:00", originalMessage: "Weekly newsletter update", campaign: "Newsletter"},
-    {id: 2, contactId: 7, reason: "UNSUBSCRIBE", dateOptedOut: "2025-08-01T15:30:00", originalMessage: "Flash sale notification", campaign: "Sales"}
-  ],
-  campaigns: [
-    {id: 1, name: "Appointment Reminders", messagesSent: 45, deliveryRate: 98.5, optOutRate: 0.5, createdAt: "2025-07-30"},
-    {id: 2, name: "Weekly Newsletter", messagesSent: 120, deliveryRate: 97.2, optOutRate: 2.1, createdAt: "2025-07-28"},
-    {id: 3, name: "Promotions", messagesSent: 80, deliveryRate: 96.8, optOutRate: 1.5, createdAt: "2025-08-02"}
-  ],
+  contacts: [],
+  messages: [],
+  conversations: [],
+  optOuts: [],
+  campaigns: [],
   apiConfig: {
-    provider: "Mobile Message Australia",
-    endpoint: "https://api.mobilemessage.com.au/v1/messages",
-    status: "connected",
-    credentials: "configured",
-    rateLimit: "100 messages/minute"
+    provider: "",
+    endpoint: "",
+    apiKey: "",
+    apiSecret: "",
+    status: "not_configured",
+    credentials: "not_configured",
+    rateLimit: "",
+    testMode: false
+  },
+  csvMapping: {
+    firstName: "firstName",
+    lastName: "lastName", 
+    phone: "phone",
+    email: "email",
+    address: "address",
+    suburb: "suburb",
+    tags: "tags"
   },
   selectedContacts: [],
-  currentSection: 'dashboard'
+  currentSection: 'dashboard',
+  messengerState: {
+    selectedConversation: null,
+    searchTerm: "",
+    filterStatus: "all" // all, unread, active
+  }
 };
 
 // Initialize Application
@@ -46,6 +45,8 @@ document.addEventListener('DOMContentLoaded', function() {
   populateFilterOptions();
   populateIndividualContactSelect();
   updateRecentActivity();
+  loadApiConfig(); // Load API config on app start
+  updateApiStatusDisplay(); // Update API status display
 });
 
 // Navigation
@@ -104,6 +105,7 @@ function navigateToSection(sectionId) {
   const titles = {
     'dashboard': 'Dashboard',
     'contacts': 'Contacts',
+    'messenger': 'Messenger',
     'send-sms': 'Send SMS',
     'campaigns': 'Campaigns',
     'opt-outs': 'Opt-Outs',
@@ -120,6 +122,8 @@ function navigateToSection(sectionId) {
   if (sectionId === 'contacts') {
     renderContactsTable();
     populateFilterOptions();
+  } else if (sectionId === 'messenger') {
+    renderMessenger();
   } else if (sectionId === 'campaigns') {
     renderCampaignsTable();
   } else if (sectionId === 'opt-outs') {
@@ -132,9 +136,12 @@ function navigateToSection(sectionId) {
 // Dashboard Functions
 function updateDashboardStats() {
   const totalContacts = appState.contacts.length;
-  const messagesSent = appState.campaigns.reduce((sum, campaign) => sum + campaign.messagesSent, 0);
-  const avgOptOutRate = appState.campaigns.reduce((sum, campaign) => sum + campaign.optOutRate, 0) / appState.campaigns.length;
-  const avgDeliveryRate = appState.campaigns.reduce((sum, campaign) => sum + campaign.deliveryRate, 0) / appState.campaigns.length;
+  const messagesSent = appState.campaigns.length > 0 ? 
+    appState.campaigns.reduce((sum, campaign) => sum + campaign.messagesSent, 0) : 0;
+  const avgOptOutRate = appState.campaigns.length > 0 ? 
+    appState.campaigns.reduce((sum, campaign) => sum + campaign.optOutRate, 0) / appState.campaigns.length : 0;
+  const avgDeliveryRate = appState.campaigns.length > 0 ? 
+    appState.campaigns.reduce((sum, campaign) => sum + campaign.deliveryRate, 0) / appState.campaigns.length : 0;
   
   const totalContactsEl = document.getElementById('total-contacts');
   const messagesSentEl = document.getElementById('messages-sent');
@@ -151,14 +158,51 @@ function updateRecentActivity() {
   const activityList = document.getElementById('activity-list');
   if (!activityList) return;
   
-  const activities = [
-    {text: 'New contact added: Emma Wilson', time: '2 hours ago'},
-    {text: 'SMS campaign "Promotions" sent to 80 contacts', time: '4 hours ago'},
-    {text: 'CSV import completed: 15 contacts added', time: '1 day ago'},
-    {text: 'Opt-out processed for Michael Brown', time: '2 days ago'}
-  ];
+  // Generate activities based on actual data
+  const activities = [];
   
-  activityList.innerHTML = activities.map(activity => `
+  // Add recent contacts
+  const recentContacts = appState.contacts
+    .sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded))
+    .slice(0, 2);
+  
+  recentContacts.forEach(contact => {
+    const timeAgo = formatRelativeTime(contact.dateAdded);
+    activities.push({
+      text: `New contact added: ${contact.firstName} ${contact.lastName}`,
+      time: timeAgo
+    });
+  });
+  
+  // Add recent messages
+  const recentMessages = appState.messages
+    .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt))
+    .slice(0, 2);
+  
+  recentMessages.forEach(message => {
+    const contact = appState.contacts.find(c => c.id === message.contactId);
+    const timeAgo = formatRelativeTime(message.sentAt);
+    const contactName = contact ? `${contact.firstName} ${contact.lastName}` : 'Unknown';
+    activities.push({
+      text: `SMS sent to ${contactName}`,
+      time: timeAgo
+    });
+  });
+  
+  // If no activities, show default message
+  if (activities.length === 0) {
+    activities.push({
+      text: 'No recent activity',
+      time: 'Get started by adding contacts or sending messages'
+    });
+  }
+  
+  // Sort by time and take first 4
+  const sortedActivities = activities
+    .sort((a, b) => new Date(b.time) - new Date(a.time))
+    .slice(0, 4);
+  
+  activityList.innerHTML = sortedActivities.map(activity => `
     <div class="activity-item">
       <span>${activity.text}</span>
       <span class="activity-time">${activity.time}</span>
@@ -260,10 +304,26 @@ function updateSelectedContacts() {
 }
 
 function addContact(contactData) {
-  const newId = Math.max(...appState.contacts.map(c => c.id)) + 1;
+  // Format and validate phone number
+  const formattedPhone = formatAustralianPhoneNumber(contactData.phone);
+  
+  if (!validateAustralianPhoneNumber(formattedPhone)) {
+    showNotification('Please enter a valid Australian phone number', 'error');
+    return;
+  }
+  
+  // Check for duplicate phone number
+  const existingContact = getContactByPhone(formattedPhone);
+  if (existingContact) {
+    showNotification('A contact with this phone number already exists', 'error');
+    return;
+  }
+  
+  const newId = appState.contacts.length > 0 ? Math.max(...appState.contacts.map(c => c.id)) + 1 : 1;
   const newContact = {
     id: newId,
     ...contactData,
+    phone: formattedPhone,
     status: 'active',
     dateAdded: new Date().toISOString().split('T')[0]
   };
@@ -274,6 +334,7 @@ function addContact(contactData) {
   populateIndividualContactSelect();
   updateDashboardStats();
   hideModal('add-contact-modal');
+  showNotification('Contact added successfully', 'success');
 }
 
 function editContact(contactId) {
@@ -351,8 +412,8 @@ function bulkExport() {
   downloadCSV(csv, 'selected_contacts.csv');
 }
 
-// CSV Import/Export
-function processCSVImport() {
+// CSV Import/Export (Legacy - kept for backward compatibility)
+function processCSVImportLegacy() {
   const fileInput = document.getElementById('csv-file-input');
   const file = fileInput ? fileInput.files[0] : null;
   
@@ -408,12 +469,25 @@ function parseCSV(csv) {
 }
 
 function addContactFromCSV(contactData) {
-  const newId = Math.max(...appState.contacts.map(c => c.id)) + 1;
+  // Format and validate phone number
+  const formattedPhone = formatAustralianPhoneNumber(contactData.phone);
+  
+  if (!validateAustralianPhoneNumber(formattedPhone)) {
+    return { success: false, reason: 'Invalid phone number format' };
+  }
+  
+  // Check for duplicate phone number
+  const existingContact = getContactByPhone(formattedPhone);
+  if (existingContact) {
+    return { success: false, reason: 'Duplicate phone number' };
+  }
+  
+  const newId = appState.contacts.length > 0 ? Math.max(...appState.contacts.map(c => c.id)) + 1 : 1;
   const newContact = {
     id: newId,
     firstName: contactData.firstName,
     lastName: contactData.lastName,
-    phone: contactData.phone,
+    phone: formattedPhone,
     email: contactData.email || '',
     address: contactData.address || '',
     suburb: contactData.suburb || '',
@@ -423,6 +497,7 @@ function addContactFromCSV(contactData) {
   };
   
   appState.contacts.push(newContact);
+  return { success: true };
 }
 
 function generateCSV(contacts) {
@@ -610,7 +685,13 @@ function sendMessage() {
   const recipientType = recipientTypeRadio.value;
   
   if (!messageValue.trim()) {
-    alert('Please enter a message');
+    showNotification('Please enter a message', 'error');
+    return;
+  }
+  
+  // Check API configuration
+  if (appState.apiConfig.status !== 'connected') {
+    showNotification('Please configure your SMS API in Settings first', 'error');
     return;
   }
   
@@ -619,7 +700,7 @@ function sendMessage() {
     const individualContact = document.getElementById('individual-contact');
     const contactId = individualContact ? individualContact.value : '';
     if (!contactId) {
-      alert('Please select a contact');
+      showNotification('Please select a contact', 'error');
       return;
     }
     recipients = [parseInt(contactId)];
@@ -629,28 +710,33 @@ function sendMessage() {
       .map(c => c.id);
   }
   
-  // Simulate API call
-  const messageId = appState.messages.length + 1;
-  recipients.forEach(contactId => {
-    appState.messages.push({
-      id: messageId + Math.random(),
-      contactId: contactId,
-      message: messageValue,
-      status: 'delivered',
-      sentAt: new Date().toISOString(),
-      campaign: 'Manual Send'
+  // Show sending notification
+  showNotification(`Sending message to ${recipients.length} recipient(s)...`, 'info');
+  
+  // Simulate API call with delay
+  setTimeout(() => {
+    const messageId = appState.messages.length + 1;
+    recipients.forEach(contactId => {
+      appState.messages.push({
+        id: messageId + Math.random(),
+        contactId: contactId,
+        message: messageValue,
+        status: 'delivered',
+        sentAt: new Date().toISOString(),
+        campaign: 'Manual Send'
+      });
     });
-  });
-  
-  alert(`Message sent to ${recipients.length} recipient(s)`);
-  
-  // Clear form
-  messageText.value = '';
-  const individualContact = document.getElementById('individual-contact');
-  if (individualContact) individualContact.value = '';
-  updateMessagePreview();
-  updateCharacterCount();
-  updateDashboardStats();
+    
+    showNotification(`Message sent successfully to ${recipients.length} recipient(s)`, 'success');
+    
+    // Clear form
+    messageText.value = '';
+    const individualContact = document.getElementById('individual-contact');
+    if (individualContact) individualContact.value = '';
+    updateMessagePreview();
+    updateCharacterCount();
+    updateDashboardStats();
+  }, 2000);
 }
 
 // Campaign Management
@@ -720,6 +806,736 @@ function reOptIn(contactId) {
       alert('Contact has been re-opted in successfully');
     }
   }
+}
+
+// API Configuration Management
+function saveApiConfig(configData) {
+  appState.apiConfig = {
+    ...appState.apiConfig,
+    ...configData,
+    status: "configured",
+    credentials: "configured"
+  };
+  
+  // Save to localStorage
+  localStorage.setItem('smsProspectorApiConfig', JSON.stringify(appState.apiConfig));
+  
+  // Update UI
+  updateApiStatusDisplay();
+  hideModal('api-config-modal');
+  
+  // Test connection
+  testApiConnection();
+}
+
+function testApiConnection() {
+  const config = appState.apiConfig;
+  
+  if (!config.apiKey || !config.endpoint) {
+    showNotification('Please configure API credentials first', 'error');
+    return;
+  }
+  
+  // Simulate API test
+  showNotification('Testing API connection...', 'info');
+  
+  setTimeout(() => {
+    // Simulate successful connection
+    appState.apiConfig.status = "connected";
+    updateApiStatusDisplay();
+    showNotification('API connection successful!', 'success');
+  }, 2000);
+}
+
+function updateApiStatusDisplay() {
+  const config = appState.apiConfig;
+  
+  // Update settings page
+  const providerField = document.getElementById('api-provider');
+  const endpointField = document.getElementById('api-endpoint');
+  const statusField = document.getElementById('api-status');
+  const rateLimitField = document.getElementById('api-rate-limit');
+  
+  if (providerField) providerField.value = config.provider || 'Not configured';
+  if (endpointField) endpointField.value = config.endpoint || 'Not configured';
+  if (rateLimitField) rateLimitField.value = config.rateLimit || 'Not configured';
+  
+  if (statusField) {
+    if (config.status === 'connected') {
+      statusField.innerHTML = '<div class="status success">✓ Connected</div>';
+    } else if (config.status === 'configured') {
+      statusField.innerHTML = '<div class="status warning">⚠ Configured (Not tested)</div>';
+    } else {
+      statusField.innerHTML = '<div class="status error">✗ Not configured</div>';
+    }
+  }
+  
+  // Update SMS page API status
+  const smsApiStatus = document.getElementById('sms-api-status');
+  if (smsApiStatus) {
+    if (config.status === 'connected') {
+      smsApiStatus.innerHTML = `
+        <div class="api-info">
+          <div class="status success">✓ Connected</div>
+          <div>Provider: ${config.provider}</div>
+          <div>Endpoint: ${config.endpoint}</div>
+          <div>Rate Limit: ${config.rateLimit}</div>
+        </div>
+      `;
+    } else {
+      smsApiStatus.innerHTML = `
+        <div class="api-info">
+          <div class="status error">✗ Not configured</div>
+          <div>Please configure your API in Settings</div>
+        </div>
+      `;
+    }
+  }
+}
+
+function loadApiConfig() {
+  const savedConfig = localStorage.getItem('smsProspectorApiConfig');
+  if (savedConfig) {
+    try {
+      appState.apiConfig = { ...appState.apiConfig, ...JSON.parse(savedConfig) };
+    } catch (e) {
+      console.error('Error loading API config:', e);
+    }
+  }
+}
+
+function showApiConfigModal() {
+  const modal = document.getElementById('api-config-modal');
+  if (!modal) return;
+  
+  // Pre-fill form with existing config
+  const form = document.getElementById('api-config-form');
+  if (form) {
+    form.provider.value = appState.apiConfig.provider || '';
+    form.endpoint.value = appState.apiConfig.endpoint || '';
+    form.apiKey.value = appState.apiConfig.apiKey || '';
+    form.apiSecret.value = appState.apiConfig.apiSecret || '';
+    form.rateLimit.value = appState.apiConfig.rateLimit || '';
+    form.testMode.checked = appState.apiConfig.testMode || false;
+  }
+  
+  showModal('api-config-modal');
+}
+
+function showNotification(message, type = 'info') {
+  const notification = document.createElement('div');
+  notification.className = `notification notification--${type}`;
+  notification.innerHTML = `
+    <span>${message}</span>
+    <button onclick="this.parentElement.remove()">&times;</button>
+  `;
+  
+  document.body.appendChild(notification);
+  
+  // Auto-remove after 5 seconds
+  setTimeout(() => {
+    if (notification.parentElement) {
+      notification.remove();
+    }
+  }, 5000);
+}
+
+// Enhanced CSV Import Functions
+function processCSVImport() {
+  const fileInput = document.getElementById('csv-file-input');
+  const file = fileInput ? fileInput.files[0] : null;
+  
+  if (!file) {
+    showNotification('Please select a CSV file', 'error');
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const csv = e.target.result;
+    const result = parseCSVWithMapping(csv);
+    
+    if (result.error) {
+      showNotification(result.error, 'error');
+      return;
+    }
+    
+    // Show preview modal
+    showCSVPreviewModal(result.contacts, result.mapping);
+  };
+  reader.readAsText(file);
+}
+
+function parseCSVWithMapping(csv) {
+  const lines = csv.split('\n').filter(line => line.trim());
+  if (lines.length < 2) {
+    return { error: 'CSV file must have at least a header row and one data row' };
+  }
+  
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  const contacts = [];
+  
+  // Auto-detect column mapping
+  const mapping = detectColumnMapping(headers);
+  
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i]);
+    if (values.length === headers.length && values[0]) {
+      const contact = {};
+      headers.forEach((header, index) => {
+        const field = mapping[header];
+        if (field) {
+          if (field === 'tags') {
+            contact[field] = values[index] ? values[index].split(';').map(t => t.trim()) : [];
+          } else {
+            contact[field] = values[index] || '';
+          }
+        }
+      });
+      
+      // Validate required fields
+      if (contact.firstName && contact.lastName && contact.phone) {
+        contacts.push(contact);
+      }
+    }
+  }
+  
+  return { contacts, mapping, headers };
+}
+
+function parseCSVLine(line) {
+  const values = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      values.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  
+  values.push(current.trim());
+  return values;
+}
+
+function detectColumnMapping(headers) {
+  const mapping = {};
+  const fieldVariations = {
+    firstName: ['firstname', 'first_name', 'first name', 'fname', 'given name'],
+    lastName: ['lastname', 'last_name', 'last name', 'lname', 'surname', 'family name'],
+    phone: ['phone', 'telephone', 'mobile', 'cell', 'phone number', 'mobile number'],
+    email: ['email', 'e-mail', 'email address'],
+    address: ['address', 'street', 'street address'],
+    suburb: ['suburb', 'city', 'town', 'location'],
+    tags: ['tags', 'tag', 'categories', 'category']
+  };
+  
+  headers.forEach(header => {
+    const lowerHeader = header.toLowerCase();
+    
+    for (const [field, variations] of Object.entries(fieldVariations)) {
+      if (variations.includes(lowerHeader) || lowerHeader === field) {
+        mapping[header] = field;
+        break;
+      }
+    }
+  });
+  
+  return mapping;
+}
+
+function showCSVPreviewModal(contacts, mapping) {
+  const modal = document.getElementById('csv-preview-modal');
+  if (!modal) return;
+  
+  const previewTable = document.getElementById('csv-preview-table');
+  const mappingContainer = document.getElementById('csv-mapping-container');
+  
+  if (previewTable) {
+    // Show preview of first 5 contacts
+    const previewContacts = contacts.slice(0, 5);
+    previewTable.innerHTML = `
+      <thead>
+        <tr>
+          <th>First Name</th>
+          <th>Last Name</th>
+          <th>Phone</th>
+          <th>Email</th>
+          <th>Address</th>
+          <th>Suburb</th>
+          <th>Tags</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${previewContacts.map(contact => `
+          <tr>
+            <td>${contact.firstName || '-'}</td>
+            <td>${contact.lastName || '-'}</td>
+            <td>${contact.phone || '-'}</td>
+            <td>${contact.email || '-'}</td>
+            <td>${contact.address || '-'}</td>
+            <td>${contact.suburb || '-'}</td>
+            <td>${contact.tags ? contact.tags.join(', ') : '-'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    `;
+  }
+  
+  if (mappingContainer) {
+    mappingContainer.innerHTML = `
+      <h4>Column Mapping:</h4>
+      <div class="mapping-list">
+        ${Object.entries(mapping).map(([header, field]) => `
+          <div class="mapping-item">
+            <span class="csv-header">${header}</span>
+            <span class="arrow">→</span>
+            <span class="field-name">${field}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+  
+  // Store data for import
+  window.csvImportData = { contacts, mapping };
+  
+  showModal('csv-preview-modal');
+}
+
+function confirmCSVImport() {
+  const data = window.csvImportData;
+  if (!data) return;
+  
+  let importedCount = 0;
+  let skippedCount = 0;
+  let duplicateCount = 0;
+  let invalidPhoneCount = 0;
+  
+  data.contacts.forEach(contactData => {
+    if (contactData.firstName && contactData.lastName && contactData.phone) {
+      const result = addContactFromCSV(contactData);
+      if (result.success) {
+        importedCount++;
+      } else if (result.reason === 'Duplicate phone number') {
+        duplicateCount++;
+      } else if (result.reason === 'Invalid phone number format') {
+        invalidPhoneCount++;
+      } else {
+        skippedCount++;
+      }
+    } else {
+      skippedCount++;
+    }
+  });
+  
+  renderContactsTable();
+  populateFilterOptions();
+  populateIndividualContactSelect();
+  updateDashboardStats();
+  hideModal('csv-preview-modal');
+  
+  let message = `Imported ${importedCount} contacts successfully`;
+  if (duplicateCount > 0) message += `, ${duplicateCount} duplicates skipped`;
+  if (invalidPhoneCount > 0) message += `, ${invalidPhoneCount} invalid phone numbers`;
+  if (skippedCount > 0) message += `, ${skippedCount} invalid records`;
+  
+  showNotification(message, 'success');
+  
+  // Clear stored data
+  window.csvImportData = null;
+}
+
+// Messenger Functions
+function renderMessenger() {
+  renderConversationList();
+  renderConversationView();
+  updateMessengerStats();
+}
+
+function renderConversationList() {
+  const conversationList = document.getElementById('conversation-list');
+  if (!conversationList) return;
+  
+  const searchTerm = appState.messengerState.searchTerm.toLowerCase();
+  const filterStatus = appState.messengerState.filterStatus;
+  
+  let filteredConversations = appState.conversations.filter(conversation => {
+    const contact = appState.contacts.find(c => c.id === conversation.contactId);
+    if (!contact) return false;
+    
+    const matchesSearch = !searchTerm || 
+      contact.firstName.toLowerCase().includes(searchTerm) ||
+      contact.lastName.toLowerCase().includes(searchTerm) ||
+      contact.phone.includes(searchTerm);
+    
+    const matchesFilter = filterStatus === 'all' || 
+      (filterStatus === 'unread' && conversation.unreadCount > 0) ||
+      (filterStatus === 'active' && conversation.unreadCount === 0);
+    
+    return matchesSearch && matchesFilter;
+  });
+  
+  // Sort by last activity (most recent first)
+  filteredConversations.sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity));
+  
+  conversationList.innerHTML = filteredConversations.map(conversation => {
+    const contact = appState.contacts.find(c => c.id === conversation.contactId);
+    const lastMessage = conversation.messages[conversation.messages.length - 1];
+    const isSelected = appState.messengerState.selectedConversation === conversation.id;
+    
+    return `
+      <div class="conversation-item ${isSelected ? 'selected' : ''}" onclick="selectConversation(${conversation.id})">
+        <div class="conversation-avatar">
+          <div class="avatar">${contact.firstName.charAt(0)}${contact.lastName.charAt(0)}</div>
+          ${conversation.unreadCount > 0 ? `<div class="unread-badge">${conversation.unreadCount}</div>` : ''}
+        </div>
+        <div class="conversation-content">
+          <div class="conversation-header">
+            <span class="contact-name">${contact.firstName} ${contact.lastName}</span>
+            <span class="last-activity">${formatRelativeTime(lastMessage.receivedAt || lastMessage.sentAt)}</span>
+          </div>
+          <div class="conversation-preview">
+            <span class="message-preview">${lastMessage.message.substring(0, 50)}${lastMessage.message.length > 50 ? '...' : ''}</span>
+            ${lastMessage.direction === 'inbound' ? '<span class="inbound-indicator">📥</span>' : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderConversationView() {
+  const conversationView = document.getElementById('conversation-view');
+  const messageInput = document.getElementById('message-input');
+  const sendButton = document.getElementById('send-reply-btn');
+  
+  if (!conversationView) return;
+  
+  const selectedConversation = appState.conversations.find(c => c.id === appState.messengerState.selectedConversation);
+  
+  if (!selectedConversation) {
+    conversationView.innerHTML = `
+      <div class="no-conversation">
+        <div class="no-conversation-icon">💬</div>
+        <h3>Select a conversation</h3>
+        <p>Choose a conversation from the list to start messaging</p>
+      </div>
+    `;
+    if (messageInput) messageInput.disabled = true;
+    if (sendButton) sendButton.disabled = true;
+    return;
+  }
+  
+  const contact = appState.contacts.find(c => c.id === selectedConversation.contactId);
+  
+  // Render conversation header
+  const conversationHeader = document.getElementById('conversation-header');
+  if (conversationHeader) {
+    conversationHeader.innerHTML = `
+      <div class="conversation-contact-info">
+        <div class="contact-avatar">${contact.firstName.charAt(0)}${contact.lastName.charAt(0)}</div>
+        <div class="contact-details">
+          <h3>${contact.firstName} ${contact.lastName}</h3>
+          <span class="contact-phone">${contact.phone}</span>
+        </div>
+      </div>
+      <div class="conversation-actions">
+        <button class="btn btn--sm btn--outline" onclick="viewContactDetails(${contact.id})">View Contact</button>
+      </div>
+    `;
+  }
+  
+  // Render messages
+  const messagesContainer = document.getElementById('messages-container');
+  if (messagesContainer) {
+    messagesContainer.innerHTML = selectedConversation.messages.map(message => `
+      <div class="message ${message.direction}">
+        <div class="message-content">
+          <div class="message-text">${message.message}</div>
+          <div class="message-time">${formatMessageTime(message.receivedAt || message.sentAt)}</div>
+          ${message.direction === 'outbound' ? `<div class="message-status ${message.status}">${getStatusIcon(message.status)}</div>` : ''}
+        </div>
+      </div>
+    `).join('');
+    
+    // Scroll to bottom
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+  
+  // Enable input
+  if (messageInput) messageInput.disabled = false;
+  if (sendButton) sendButton.disabled = false;
+  
+  // Mark as read
+  if (selectedConversation.unreadCount > 0) {
+    markConversationAsRead(selectedConversation.id);
+  }
+}
+
+function selectConversation(conversationId) {
+  appState.messengerState.selectedConversation = conversationId;
+  renderConversationList();
+  renderConversationView();
+}
+
+function sendReply() {
+  const messageInput = document.getElementById('message-input');
+  const selectedConversation = appState.conversations.find(c => c.id === appState.messengerState.selectedConversation);
+  
+  if (!messageInput || !selectedConversation) return;
+  
+  const messageText = messageInput.value.trim();
+  if (!messageText) return;
+  
+  // Check API configuration
+  if (appState.apiConfig.status !== 'connected') {
+    showNotification('Please configure your SMS API in Settings first', 'error');
+    return;
+  }
+  
+  // Add message to conversation
+  const newMessageId = Math.max(...selectedConversation.messages.map(m => m.id), 0) + 1;
+  const newMessage = {
+    id: newMessageId,
+    message: messageText,
+    status: 'sending',
+    sentAt: new Date().toISOString(),
+    direction: 'outbound'
+  };
+  
+  selectedConversation.messages.push(newMessage);
+  selectedConversation.lastActivity = newMessage.sentAt;
+  
+  // Clear input
+  messageInput.value = '';
+  
+  // Re-render
+  renderConversationView();
+  renderConversationList();
+  
+  // Simulate sending
+  showNotification('Sending message...', 'info');
+  
+  setTimeout(() => {
+    newMessage.status = 'delivered';
+    renderConversationView();
+    showNotification('Message sent successfully', 'success');
+  }, 2000);
+}
+
+function markConversationAsRead(conversationId) {
+  const conversation = appState.conversations.find(c => c.id === conversationId);
+  if (conversation) {
+    conversation.unreadCount = 0;
+    renderConversationList();
+  }
+}
+
+function addIncomingMessage(phone, messageText) {
+  // Find contact by phone number
+  let contact = getContactByPhone(phone);
+  
+  // If contact doesn't exist, create a new one
+  if (!contact) {
+    const newId = appState.contacts.length > 0 ? Math.max(...appState.contacts.map(c => c.id)) + 1 : 1;
+    contact = {
+      id: newId,
+      firstName: 'Unknown',
+      lastName: 'Contact',
+      phone: formatAustralianPhoneNumber(phone),
+      email: '',
+      address: '',
+      suburb: '',
+      tags: ['unknown'],
+      status: 'active',
+      dateAdded: new Date().toISOString().split('T')[0]
+    };
+    appState.contacts.push(contact);
+  }
+  
+  // Find or create conversation
+  let conversation = appState.conversations.find(c => c.contactId === contact.id);
+  
+  if (!conversation) {
+    conversation = {
+      id: appState.conversations.length > 0 ? Math.max(...appState.conversations.map(c => c.id)) + 1 : 1,
+      contactId: contact.id,
+      messages: [],
+      lastActivity: new Date().toISOString(),
+      unreadCount: 0
+    };
+    appState.conversations.push(conversation);
+  }
+  
+  // Add incoming message
+  const newMessageId = conversation.messages.length > 0 ? Math.max(...conversation.messages.map(m => m.id)) + 1 : 1;
+  const newMessage = {
+    id: newMessageId,
+    message: messageText,
+    status: 'received',
+    receivedAt: new Date().toISOString(),
+    direction: 'inbound'
+  };
+  
+  conversation.messages.push(newMessage);
+  conversation.lastActivity = newMessage.receivedAt;
+  conversation.unreadCount++;
+  
+  // Re-render if messenger is active
+  if (appState.currentSection === 'messenger') {
+    renderConversationList();
+    if (appState.messengerState.selectedConversation === conversation.id) {
+      renderConversationView();
+    }
+  }
+  
+  // Show notification
+  const contactName = contact.firstName !== 'Unknown' ? `${contact.firstName} ${contact.lastName}` : phone;
+  showNotification(`New message from ${contactName}`, 'info');
+}
+
+function updateMessengerStats() {
+  const totalConversations = appState.conversations.length;
+  const unreadMessages = appState.conversations.reduce((sum, c) => sum + c.unreadCount, 0);
+  const activeConversations = appState.conversations.filter(c => c.unreadCount === 0).length;
+  
+  const totalConversationsEl = document.getElementById('total-conversations');
+  const unreadMessagesEl = document.getElementById('unread-messages');
+  const activeConversationsEl = document.getElementById('active-conversations');
+  
+  if (totalConversationsEl) totalConversationsEl.textContent = totalConversations;
+  if (unreadMessagesEl) unreadMessagesEl.textContent = unreadMessages;
+  if (activeConversationsEl) activeConversationsEl.textContent = activeConversations;
+}
+
+function filterConversations(status) {
+  appState.messengerState.filterStatus = status;
+  renderConversationList();
+}
+
+function searchConversations(searchTerm) {
+  appState.messengerState.searchTerm = searchTerm;
+  renderConversationList();
+}
+
+function viewContactDetails(contactId) {
+  // Navigate to contacts section and highlight the contact
+  navigateToSection('contacts');
+  // You could add logic here to scroll to and highlight the specific contact
+}
+
+// Utility functions for messenger
+function formatRelativeTime(dateString) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+}
+
+function formatMessageTime(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function getStatusIcon(status) {
+  switch (status) {
+    case 'sending': return '⏳';
+    case 'delivered': return '✓';
+    case 'read': return '✓✓';
+    case 'failed': return '✗';
+    default: return '?';
+  }
+}
+
+// Australian Phone Number Utilities
+function formatAustralianPhoneNumber(phone) {
+  // Remove all non-digit characters
+  let cleaned = phone.replace(/\D/g, '');
+  
+  // Handle different input formats
+  if (cleaned.startsWith('61')) {
+    // Already in international format
+    return '+' + cleaned;
+  } else if (cleaned.startsWith('0')) {
+    // Australian format starting with 0
+    return '+61' + cleaned.substring(1);
+  } else if (cleaned.length === 9) {
+    // Mobile number without country code
+    return '+61' + cleaned;
+  } else if (cleaned.length === 10 && cleaned.startsWith('04')) {
+    // Mobile number with 0
+    return '+61' + cleaned.substring(1);
+  } else if (cleaned.length === 8) {
+    // Landline number
+    return '+61' + cleaned;
+  }
+  
+  // If it doesn't match any pattern, return as is
+  return phone;
+}
+
+function validateAustralianPhoneNumber(phone) {
+  const formatted = formatAustralianPhoneNumber(phone);
+  
+  // Australian mobile number patterns
+  const mobilePatterns = [
+    /^\+614\d{8}$/, // +614xxxxxxxx (mobile)
+    /^04\d{8}$/,    // 04xxxxxxxx (mobile with 0)
+    /^614\d{8}$/    // 614xxxxxxxx (mobile without +)
+  ];
+  
+  // Australian landline patterns
+  const landlinePatterns = [
+    /^\+61[2378]\d{8}$/, // +61xxxxxxxxx (landline)
+    /^0[2378]\d{8}$/,    // 0xxxxxxxxx (landline with 0)
+    /^61[2378]\d{8}$/    // 61xxxxxxxxx (landline without +)
+  ];
+  
+  return mobilePatterns.some(pattern => pattern.test(formatted)) || 
+         landlinePatterns.some(pattern => pattern.test(formatted));
+}
+
+function isMobileNumber(phone) {
+  const formatted = formatAustralianPhoneNumber(phone);
+  const mobilePatterns = [
+    /^\+614\d{8}$/, // +614xxxxxxxx (mobile)
+    /^04\d{8}$/,    // 04xxxxxxxx (mobile with 0)
+    /^614\d{8}$/    // 614xxxxxxxx (mobile without +)
+  ];
+  
+  return mobilePatterns.some(pattern => pattern.test(formatted));
+}
+
+function getContactByPhone(phone) {
+  const formattedPhone = formatAustralianPhoneNumber(phone);
+  return appState.contacts.find(contact => 
+    formatAustralianPhoneNumber(contact.phone) === formattedPhone
+  );
+}
+
+function getConversationByPhone(phone) {
+  const contact = getContactByPhone(phone);
+  if (!contact) return null;
+  
+  return appState.conversations.find(conversation => 
+    conversation.contactId === contact.id
+  );
 }
 
 // Event Listeners
@@ -871,6 +1687,17 @@ function initializeEventListeners() {
       }
     });
   }
+  
+  // Messenger input
+  const messageInput = document.getElementById('message-input');
+  if (messageInput) {
+    messageInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendReply();
+      }
+    });
+  }
 }
 
 // Modal Management
@@ -945,9 +1772,12 @@ window.navigateToSection = navigateToSection;
 window.showAddContactModal = showAddContactModal;
 window.showImportModal = showImportModal;
 window.showDuplicatesModal = showDuplicatesModal;
+window.showApiConfigModal = showApiConfigModal;
 window.insertPlaceholder = insertPlaceholder;
 window.sendMessage = sendMessage;
 window.processCSVImport = processCSVImport;
+window.processCSVImportLegacy = processCSVImportLegacy;
+window.confirmCSVImport = confirmCSVImport;
 window.mergeDuplicates = mergeDuplicates;
 window.editContact = editContact;
 window.deleteContact = deleteContact;
@@ -957,6 +1787,9 @@ window.viewCampaign = viewCampaign;
 window.reOptIn = reOptIn;
 window.hideModal = hideModal;
 window.showModal = showModal;
+window.testApiConnection = testApiConnection;
+window.simulateIncomingMessage = simulateIncomingMessage;
+window.handleIncomingSMS = handleIncomingSMS;
 
 // Close modals when clicking outside
 document.addEventListener('click', function(e) {
@@ -982,3 +1815,89 @@ document.addEventListener('click', function(e) {
     e.preventDefault();
   }
 });
+
+// Webhook Handler for Incoming SMS
+function handleIncomingSMS(webhookData) {
+  // This function would be called by your SMS provider's webhook
+  // webhookData should contain: { from: phoneNumber, message: text, timestamp: isoString }
+  
+  const { from, message, timestamp } = webhookData;
+  
+  if (!from || !message) {
+    console.error('Invalid webhook data received');
+    return;
+  }
+  
+  // Check for opt-out keywords
+  const optOutKeywords = ['STOP', 'UNSUBSCRIBE', 'QUIT', 'CANCEL'];
+  const messageUpper = message.toUpperCase().trim();
+  
+  if (optOutKeywords.includes(messageUpper)) {
+    handleOptOut(from, messageUpper, message);
+    return;
+  }
+  
+  // Add the incoming message
+  addIncomingMessage(from, message);
+  
+  // Update dashboard stats
+  updateDashboardStats();
+  updateMessengerStats();
+}
+
+function handleOptOut(phone, keyword, originalMessage) {
+  const contact = getContactByPhone(phone);
+  
+  if (!contact) {
+    // Create unknown contact for opt-out
+    const newId = appState.contacts.length > 0 ? Math.max(...appState.contacts.map(c => c.id)) + 1 : 1;
+    const newContact = {
+      id: newId,
+      firstName: 'Unknown',
+      lastName: 'Contact',
+      phone: formatAustralianPhoneNumber(phone),
+      email: '',
+      address: '',
+      suburb: '',
+      tags: ['unknown', 'opted_out'],
+      status: 'opted_out',
+      dateAdded: new Date().toISOString().split('T')[0]
+    };
+    appState.contacts.push(newContact);
+  } else {
+    // Update existing contact
+    contact.status = 'opted_out';
+    if (!contact.tags.includes('opted_out')) {
+      contact.tags.push('opted_out');
+    }
+  }
+  
+  // Add to opt-outs list
+  const optOutId = appState.optOuts.length > 0 ? Math.max(...appState.optOuts.map(o => o.id)) + 1 : 1;
+  const optOut = {
+    id: optOutId,
+    contactId: contact ? contact.id : (appState.contacts.length > 0 ? Math.max(...appState.contacts.map(c => c.id)) : 1),
+    reason: keyword,
+    dateOptedOut: new Date().toISOString(),
+    originalMessage: originalMessage,
+    campaign: 'Manual Opt-Out'
+  };
+  
+  appState.optOuts.push(optOut);
+  
+  // Update UI
+  renderContactsTable();
+  renderOptOutsTable();
+  updateDashboardStats();
+  
+  console.log(`Contact ${phone} opted out with keyword: ${keyword}`);
+}
+
+// Simulate incoming message for testing
+function simulateIncomingMessage(phone, message) {
+  handleIncomingSMS({
+    from: phone,
+    message: message,
+    timestamp: new Date().toISOString()
+  });
+}
