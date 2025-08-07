@@ -58,7 +58,7 @@ export default async function handler(req, res) {
       
       // Broadcast the message to all connected clients
       try {
-        const { broadcastMessage } = await import('./events.js');
+        const { broadcastMessage } = await import('../events.js');
         broadcastMessage(newMessage);
         console.log('Message broadcasted to connected clients');
       } catch (broadcastError) {

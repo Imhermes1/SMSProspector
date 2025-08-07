@@ -17,6 +17,28 @@ let appState = {
     webhookInbound: "",
     webhookStatus: ""
   },
+  settings: {
+    quietHoursEnabled: false,
+    quietHoursStart: "20:00",
+    quietHoursEnd: "08:00"
+  },
+  templates: [
+    {
+      id: "intro",
+      name: "Intro — Just sold nearby",
+      text: "Hi {{firstName}}, it’s {{fullName}} from {{suburb}}. We’ve just helped a neighbour and have buyers looking. Would you consider an appraisal? Reply YES for details."
+    },
+    {
+      id: "followup",
+      name: "Follow-up — Still interested?",
+      text: "Hi {{firstName}}, quick one — are you still open to an updated appraisal this month? Happy to pop by."
+    },
+    {
+      id: "appraisal",
+      name: "Appraisal — Offer value",
+      text: "Hi {{firstName}}, I can give you a no-obligation price update based on current buyer demand in {{suburb}}. What day suits?"
+    }
+  ],
   csvMapping: {
     firstName: "firstName",
     lastName: "lastName", 
@@ -41,6 +63,8 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Load all saved data from localStorage
   loadAllDataFromStorage();
+  loadSettingsFromStorage();
+  loadTemplatesFromStorage();
   
   initializeNavigation();
   initializeEventListeners();
@@ -143,6 +167,7 @@ function navigateToSection(sectionId) {
   } else if (sectionId === 'send-sms') {
     populateIndividualContactSelect();
     updateApiStatusDisplay(); // Update API status when entering Send SMS section
+    populateTemplatesUI();
   }
 }
 
@@ -743,6 +768,11 @@ function sendMessage() {
   // Get contact details for recipients
   const recipientContacts = appState.contacts.filter(c => recipients.includes(c.id));
   
+  // Quiet hours check for bulk/compose
+  if (shouldBlockForQuietHours('override-quiet-hours')) {
+    return;
+  }
+
         // Prepare message data for Mobile Message API
       const messageData = {
         messages: recipientContacts.map(contact => {
@@ -1343,9 +1373,14 @@ function renderConversationList() {
       contact.lastName.toLowerCase().includes(searchTerm) ||
       contact.phone.includes(searchTerm);
     
+    const isLead = contact.status === 'lead' || (contact.tags && contact.tags.includes('lead'));
+    const isArchived = !!conversation.archived;
+    
     const matchesFilter = filterStatus === 'all' || 
-      (filterStatus === 'unread' && conversation.unreadCount > 0) ||
-      (filterStatus === 'active' && conversation.unreadCount === 0);
+      (filterStatus === 'unread' && conversation.unreadCount > 0 && !isArchived) ||
+      (filterStatus === 'active' && conversation.unreadCount === 0 && !isArchived && !isLead) ||
+      (filterStatus === 'leads' && isLead) ||
+      (filterStatus === 'archived' && isArchived);
     
     return matchesSearch && matchesFilter;
   });
@@ -1416,6 +1451,8 @@ function renderConversationView() {
       </div>
       <div class="conversation-actions">
         <button class="btn btn--sm btn--outline" onclick="viewContactDetails(${contact.id})">View Contact</button>
+        <button class="btn btn--sm btn--outline" onclick="markSelectedConversationAsLead()">Mark as Lead</button>
+        <button class="btn btn--sm btn--outline" onclick="toggleArchiveSelectedConversation()">${selectedConversation.archived ? 'Unarchive' : 'Archive'}</button>
       </div>
     `;
   }
@@ -1440,6 +1477,7 @@ function renderConversationView() {
   // Enable input
   if (messageInput) messageInput.disabled = false;
   if (sendButton) sendButton.disabled = false;
+  populateReplyTemplatesUI();
   
   // Mark as read
   if (selectedConversation.unreadCount > 0) {
@@ -1449,6 +1487,31 @@ function renderConversationView() {
 
 function selectConversation(conversationId) {
   appState.messengerState.selectedConversation = conversationId;
+  renderConversationList();
+  renderConversationView();
+}
+
+function markSelectedConversationAsLead() {
+  const selectedConversation = appState.conversations.find(c => c.id === appState.messengerState.selectedConversation);
+  if (!selectedConversation) return;
+  const contact = appState.contacts.find(c => c.id === selectedConversation.contactId);
+  if (!contact) return;
+  contact.status = 'lead';
+  if (!contact.tags.includes('lead')) contact.tags.push('lead');
+  // Optionally archive conversation to keep inbox clean
+  selectedConversation.archived = true;
+  saveContactsToStorage();
+  saveConversationsToStorage();
+  renderConversationList();
+  renderConversationView();
+  showNotification('Marked as lead and archived conversation', 'success');
+}
+
+function toggleArchiveSelectedConversation() {
+  const selectedConversation = appState.conversations.find(c => c.id === appState.messengerState.selectedConversation);
+  if (!selectedConversation) return;
+  selectedConversation.archived = !selectedConversation.archived;
+  saveConversationsToStorage();
   renderConversationList();
   renderConversationView();
 }
@@ -1493,6 +1556,10 @@ function sendReply() {
   
   // Send via Mobile Message API
   showNotification('Sending message...', 'info');
+  // Quiet hours check for reply
+  if (shouldBlockForQuietHours('override-quiet-hours-reply')) {
+    return;
+  }
   
   // Prepare message data for Mobile Message API
   const messageData = {
@@ -1569,7 +1636,8 @@ function addIncomingMessage(phone, messageText) {
       contactId: contact.id,
       messages: [],
       lastActivity: new Date().toISOString(),
-      unreadCount: 0
+      unreadCount: 0,
+      archived: false
     };
     appState.conversations.push(conversation);
   }
@@ -2149,7 +2217,8 @@ function addIncomingMessageManually(phone, message) {
       contactId: contact.id,
       messages: [],
       unreadCount: 0,
-      lastActivity: new Date().toISOString()
+      lastActivity: new Date().toISOString(),
+      archived: false
     };
     appState.conversations.push(conversation);
   }
@@ -2270,6 +2339,8 @@ function saveAllDataToStorage() {
   saveMessagesToStorage();
   saveConversationsToStorage();
   saveOptOutsToStorage();
+  saveSettingsToStorage();
+  saveTemplatesToStorage();
 }
 
 function loadAllDataFromStorage() {
@@ -2277,6 +2348,122 @@ function loadAllDataFromStorage() {
   loadMessagesFromStorage();
   loadConversationsFromStorage();
   loadOptOutsFromStorage();
+}
+
+// Settings persistence
+function saveSettingsToStorage() {
+  try {
+    localStorage.setItem('smsProspectorSettings', JSON.stringify(appState.settings));
+  } catch (error) {
+    console.error('Error saving settings to localStorage:', error);
+  }
+}
+
+function loadSettingsFromStorage() {
+  try {
+    const saved = localStorage.getItem('smsProspectorSettings');
+    if (saved) {
+      appState.settings = JSON.parse(saved);
+    }
+  } catch (error) {
+    console.error('Error loading settings from localStorage:', error);
+  }
+}
+
+// Templates persistence
+function saveTemplatesToStorage() {
+  try {
+    localStorage.setItem('smsProspectorTemplates', JSON.stringify(appState.templates));
+  } catch (error) {
+    console.error('Error saving templates to localStorage:', error);
+  }
+}
+
+function loadTemplatesFromStorage() {
+  try {
+    const saved = localStorage.getItem('smsProspectorTemplates');
+    if (saved) {
+      appState.templates = JSON.parse(saved);
+    }
+  } catch (error) {
+    console.error('Error loading templates from localStorage:', error);
+  }
+}
+
+// Templates UI
+function populateTemplatesUI() {
+  const select = document.getElementById('template-select');
+  if (!select) return;
+  select.innerHTML = `<option value="">Templates…</option>` + appState.templates.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+}
+
+function applyTemplate(id) {
+  if (!id) return;
+  const t = appState.templates.find(x => x.id === id);
+  if (!t) return;
+  const messageText = document.getElementById('message-text');
+  if (!messageText) return;
+  messageText.value = t.text;
+  updateMessagePreview();
+  updateCharacterCount();
+}
+
+function saveCurrentAsTemplate() {
+  const messageText = document.getElementById('message-text');
+  if (!messageText || !messageText.value.trim()) {
+    showNotification('Type a message before saving a template', 'error');
+    return;
+  }
+  const name = prompt('Template name');
+  if (!name) return;
+  const newT = { id: `t_${Date.now()}`, name, text: messageText.value };
+  appState.templates.push(newT);
+  saveTemplatesToStorage();
+  populateTemplatesUI();
+  populateReplyTemplatesUI();
+  showNotification('Template saved', 'success');
+}
+
+function populateReplyTemplatesUI() {
+  const select = document.getElementById('reply-template-select');
+  if (!select) return;
+  select.innerHTML = `<option value="">Templates…</option>` + appState.templates.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+}
+
+function applyReplyTemplate(id) {
+  if (!id) return;
+  const t = appState.templates.find(x => x.id === id);
+  if (!t) return;
+  const input = document.getElementById('message-input');
+  if (!input) return;
+  input.value = t.text;
+}
+
+// Quiet hours helpers
+function isWithinQuietHours() {
+  if (!appState.settings.quietHoursEnabled) return false;
+  const now = new Date();
+  const [startH, startM] = appState.settings.quietHoursStart.split(':').map(Number);
+  const [endH, endM] = appState.settings.quietHoursEnd.split(':').map(Number);
+  const start = new Date(now);
+  start.setHours(startH, startM, 0, 0);
+  const end = new Date(now);
+  end.setHours(endH, endM, 0, 0);
+  if (end <= start) {
+    // Overnight window
+    return now >= start || now <= end;
+  }
+  return now >= start && now <= end;
+}
+
+function shouldBlockForQuietHours(overrideFlagElementId) {
+  // If override checkbox exists and is checked, allow send
+  const el = document.getElementById(overrideFlagElementId);
+  const override = el ? el.checked : false;
+  if (override) return false;
+  if (!isWithinQuietHours()) return false;
+  showNotification('Within quiet hours. Enable override to send now.', 'warning');
+  return true;
 }
 
 // Mobile Message API Functions
@@ -2291,8 +2478,8 @@ async function sendToMobileMessageAPI(messageData) {
     console.log('Sending SMS request to proxy:', {
       messages: messageData.messages,
       apiConfig: {
-        key: config.key,
-        secret: config.secret ? '***' : 'missing',
+        key: config.apiKey,
+        secret: config.apiSecret ? '***' : 'missing',
         endpoint: config.endpoint
       }
     });
