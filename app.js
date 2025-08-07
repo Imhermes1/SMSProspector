@@ -7,13 +7,15 @@ let appState = {
   campaigns: [],
   apiConfig: {
     provider: "",
-    endpoint: "",
+    endpoint: "https://api.mobilemessage.com.au/v1/messages",
     apiKey: "",
     apiSecret: "",
     status: "not_configured",
     credentials: "not_configured",
-    rateLimit: "",
-    testMode: false
+    rateLimit: "5 concurrent requests",
+    testMode: false,
+    webhookInbound: "",
+    webhookStatus: ""
   },
   csvMapping: {
     firstName: "firstName",
@@ -911,11 +913,13 @@ function showApiConfigModal() {
   // Pre-fill form with existing config
   const form = document.getElementById('api-config-form');
   if (form) {
-    form.provider.value = appState.apiConfig.provider || '';
-    form.endpoint.value = appState.apiConfig.endpoint || '';
+    form.provider.value = appState.apiConfig.provider || 'Mobile Message';
+    form.endpoint.value = appState.apiConfig.endpoint || 'https://api.mobilemessage.com.au/v1/messages';
     form.apiKey.value = appState.apiConfig.apiKey || '';
     form.apiSecret.value = appState.apiConfig.apiSecret || '';
-    form.rateLimit.value = appState.apiConfig.rateLimit || '';
+    form.rateLimit.value = appState.apiConfig.rateLimit || '5 concurrent requests';
+    form.webhookInbound.value = appState.apiConfig.webhookInbound || '';
+    form.webhookStatus.value = appState.apiConfig.webhookStatus || '';
     form.testMode.checked = appState.apiConfig.testMode || false;
   }
   
@@ -943,7 +947,13 @@ function showNotification(message, type = 'info') {
 // Enhanced CSV Import Functions
 function processCSVImport() {
   const fileInput = document.getElementById('csv-file-input');
-  const file = fileInput ? fileInput.files[0] : null;
+  
+  if (!fileInput) {
+    showNotification('CSV file input not found. Please try again.', 'error');
+    return;
+  }
+  
+  const file = fileInput.files[0];
   
   if (!file) {
     showNotification('Please select a CSV file', 'error');
@@ -1321,14 +1331,31 @@ function sendReply() {
   renderConversationView();
   renderConversationList();
   
-  // Simulate sending
+  // Send via Mobile Message API
   showNotification('Sending message...', 'info');
   
-  setTimeout(() => {
-    newMessage.status = 'delivered';
-    renderConversationView();
-    showNotification('Message sent successfully', 'success');
-  }, 2000);
+  // Prepare message data for Mobile Message API
+  const messageData = {
+    messages: [{
+      to: contact.phone,
+      message: messageText,
+      sender: appState.apiConfig.provider || 'SMSProspector',
+      custom_ref: `msg_${Date.now()}`
+    }]
+  };
+  
+  // Send to Mobile Message API
+  sendToMobileMessageAPI(messageData)
+    .then(response => {
+      newMessage.status = 'delivered';
+      renderConversationView();
+      showNotification('Message sent successfully', 'success');
+    })
+    .catch(error => {
+      newMessage.status = 'failed';
+      renderConversationView();
+      showNotification('Failed to send message: ' + error.message, 'error');
+    });
 }
 
 function markConversationAsRead(conversationId) {
@@ -1745,12 +1772,11 @@ function hideModal(modalId) {
       const uploadZone = document.getElementById('upload-zone');
       const csvFileInput = document.getElementById('csv-file-input');
       if (uploadZone) {
-        uploadZone.innerHTML = `
-          <div class="upload-icon">📁</div>
-          <p>Drop your CSV file here or click to browse</p>
-          <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
-          <button type="button" class="btn btn--outline" onclick="document.getElementById('csv-file-input').click()">Choose File</button>
-        `;
+        // Reset the upload zone content without recreating the file input
+        const uploadIcon = uploadZone.querySelector('.upload-icon');
+        const uploadText = uploadZone.querySelector('p');
+        if (uploadIcon) uploadIcon.textContent = '📁';
+        if (uploadText) uploadText.textContent = 'Drop your CSV file here or click to browse';
       }
       if (csvFileInput) {
         csvFileInput.value = '';
@@ -1900,4 +1926,38 @@ function simulateIncomingMessage(phone, message) {
     message: message,
     timestamp: new Date().toISOString()
   });
+}
+
+// Mobile Message API Functions
+async function sendToMobileMessageAPI(messageData) {
+  const config = appState.apiConfig;
+  
+  if (!config.apiKey || !config.endpoint) {
+    throw new Error('API not configured');
+  }
+  
+  // Create Basic Auth header
+  const credentials = btoa(`${config.apiKey}:${config.apiSecret}`);
+  
+  try {
+    const response = await fetch(config.endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(messageData)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('Mobile Message API Error:', error);
+    throw error;
+  }
 }

@@ -1611,6 +1611,13 @@ select.form-control {
   accent-color: var(--color-primary);
 }
 
+.form-help {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-top: 0.25rem;
+  display: block;
+}
+
 /* Responsive adjustments for new components */
 @media (max-width: 768px) {
   .csv-preview-content {

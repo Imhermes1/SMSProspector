@@ -484,7 +484,17 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Rate Limit</label>
-                        <input type="text" name="rateLimit" class="form-control" placeholder="e.g., 100 messages/minute">
+                        <input type="text" name="rateLimit" class="form-control" placeholder="e.g., 5 concurrent requests" value="5 concurrent requests">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Inbound Messages Webhook URL</label>
+                        <input type="url" name="webhookInbound" class="form-control" placeholder="https://your-domain.com/api/webhooks/inbound">
+                        <small class="form-help">URL to receive incoming SMS messages</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Status Updates Webhook URL</label>
+                        <input type="url" name="webhookStatus" class="form-control" placeholder="https://your-domain.com/api/webhooks/status">
+                        <small class="form-help">URL to receive delivery status updates</small>
                     </div>
                     <div class="form-group">
                         <label class="checkbox-label">
