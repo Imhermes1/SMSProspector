@@ -745,11 +745,22 @@ function sendMessage() {
         messages: recipientContacts.map(contact => {
           // Replace placeholders in the message
           let personalizedMessage = messageValue;
+          
+          // Handle single-brace placeholders
           personalizedMessage = personalizedMessage.replace(/\{firstname\}/gi, contact.firstName || '');
           personalizedMessage = personalizedMessage.replace(/\{lastname\}/gi, contact.lastName || '');
           personalizedMessage = personalizedMessage.replace(/\{fullname\}/gi, `${contact.firstName || ''} ${contact.lastName || ''}`.trim());
           personalizedMessage = personalizedMessage.replace(/\{phone\}/gi, contact.phone || '');
           personalizedMessage = personalizedMessage.replace(/\{email\}/gi, contact.email || '');
+          
+          // Handle double-brace placeholders ({{firstName}})
+          personalizedMessage = personalizedMessage.replace(/\{\{firstName\}\}/gi, contact.firstName || '');
+          personalizedMessage = personalizedMessage.replace(/\{\{lastName\}\}/gi, contact.lastName || '');
+          personalizedMessage = personalizedMessage.replace(/\{\{fullName\}\}/gi, `${contact.firstName || ''} ${contact.lastName || ''}`.trim());
+          personalizedMessage = personalizedMessage.replace(/\{\{phone\}\}/gi, contact.phone || '');
+          personalizedMessage = personalizedMessage.replace(/\{\{email\}\}/gi, contact.email || '');
+          personalizedMessage = personalizedMessage.replace(/\{\{address\}\}/gi, contact.address || '');
+          personalizedMessage = personalizedMessage.replace(/\{\{suburb\}\}/gi, contact.suburb || '');
           
           return {
             to: contact.phone,
