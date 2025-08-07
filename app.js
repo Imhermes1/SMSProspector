@@ -693,7 +693,7 @@ function sendMessage() {
   }
   
   // Check API configuration
-  if (appState.apiConfig.status !== 'connected') {
+  if (appState.apiConfig.status !== 'connected' && appState.apiConfig.status !== 'configured') {
     showNotification('Please configure your SMS API in Settings first', 'error');
     return;
   }
@@ -716,30 +716,61 @@ function sendMessage() {
   // Show sending notification
   showNotification(`Sending message to ${recipients.length} recipient(s)...`, 'info');
   
-  // Simulate API call with delay
-  setTimeout(() => {
-    const messageId = appState.messages.length + 1;
-    recipients.forEach(contactId => {
-      appState.messages.push({
-        id: messageId + Math.random(),
-        contactId: contactId,
-        message: messageValue,
-        status: 'delivered',
-        sentAt: new Date().toISOString(),
-        campaign: 'Manual Send'
+  // Get contact details for recipients
+  const recipientContacts = appState.contacts.filter(c => recipients.includes(c.id));
+  
+  // Prepare message data for Mobile Message API
+  const messageData = {
+    messages: recipientContacts.map(contact => ({
+      to: contact.phone,
+      message: messageValue,
+      sender: appState.apiConfig.provider || 'SMSProspector',
+      custom_ref: `msg_${Date.now()}_${contact.id}`
+    }))
+  };
+  
+  // Send to Mobile Message API
+  sendToMobileMessageAPI(messageData)
+    .then(response => {
+      console.log('API Response:', response);
+      
+      // Add messages to app state
+      const messageId = appState.messages.length + 1;
+      recipientContacts.forEach((contact, index) => {
+        appState.messages.push({
+          id: messageId + index,
+          contactId: contact.id,
+          message: messageValue,
+          status: 'delivered',
+          sentAt: new Date().toISOString(),
+          campaign: 'Manual Send'
+        });
       });
+      
+      showNotification(`Message sent successfully to ${recipients.length} recipient(s)`, 'success');
+      
+      // Clear form
+      messageText.value = '';
+      const individualContact = document.getElementById('individual-contact');
+      if (individualContact) individualContact.value = '';
+      updateMessagePreview();
+      updateCharacterCount();
+      updateDashboardStats();
+    })
+    .catch(error => {
+      console.error('Send message error:', error);
+      
+      // Provide more helpful error messages
+      if (error.message.includes('fetch')) {
+        showNotification('Failed to send message: Network error. Please check your internet connection.', 'error');
+      } else if (error.message.includes('401')) {
+        showNotification('Failed to send message: Invalid API credentials. Please check your settings.', 'error');
+      } else if (error.message.includes('403')) {
+        showNotification('Failed to send message: Insufficient credits or unauthorized sender ID.', 'error');
+      } else {
+        showNotification('Failed to send message: ' + error.message, 'error');
+      }
     });
-    
-    showNotification(`Message sent successfully to ${recipients.length} recipient(s)`, 'success');
-    
-    // Clear form
-    messageText.value = '';
-    const individualContact = document.getElementById('individual-contact');
-    if (individualContact) individualContact.value = '';
-    updateMessagePreview();
-    updateCharacterCount();
-    updateDashboardStats();
-  }, 2000);
 }
 
 // Campaign Management
@@ -1333,7 +1364,7 @@ function sendReply() {
   if (!messageText) return;
   
   // Check API configuration
-  if (appState.apiConfig.status !== 'connected') {
+  if (appState.apiConfig.status !== 'connected' && appState.apiConfig.status !== 'configured') {
     showNotification('Please configure your SMS API in Settings first', 'error');
     return;
   }
