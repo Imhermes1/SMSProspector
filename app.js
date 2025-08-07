@@ -53,6 +53,9 @@ document.addEventListener('DOMContentLoaded', function() {
   updateRecentActivity();
   loadApiConfig(); // Load API config on app start
   updateApiStatusDisplay(); // Update API status display
+  
+  // Start checking for incoming messages
+  startIncomingMessageChecker();
 });
 
 // Navigation
@@ -2276,5 +2279,111 @@ function forceRefreshApiStatus() {
     setTimeout(() => {
       updateApiStatusDisplay();
     }, 100);
+  }
+}
+
+// Check for incoming messages from webhook
+async function checkForIncomingMessages() {
+  try {
+    const response = await fetch('/api/get-incoming-messages');
+    const data = await response.json();
+    
+    if (data.messages && data.messages.length > 0) {
+      console.log('Found incoming messages:', data.messages);
+      
+      data.messages.forEach(msg => {
+        // Add each incoming message to the app
+        addIncomingMessageManually(msg.from, msg.message);
+      });
+      
+      // Show notification
+      if (data.messages.length === 1) {
+        showNotification(`New message received from ${data.messages[0].from}`, 'info');
+      } else {
+        showNotification(`${data.messages.length} new messages received`, 'info');
+      }
+    }
+  } catch (error) {
+    console.error('Error checking for incoming messages:', error);
+  }
+}
+
+// Start real-time message checking
+function startIncomingMessageChecker() {
+  // Check immediately for any missed messages
+  checkForIncomingMessages();
+  
+  // Connect to real-time events
+  connectToRealTimeEvents();
+  
+  // Fallback: check every 30 seconds as backup
+  setInterval(checkForIncomingMessages, 30000);
+}
+
+// Connect to real-time Server-Sent Events
+function connectToRealTimeEvents() {
+  try {
+    const eventSource = new EventSource('/api/events');
+    
+    eventSource.onopen = function(event) {
+      console.log('Real-time connection established');
+      showNotification('Real-time messaging connected', 'success');
+      updateConnectionStatus(true);
+    };
+    
+    eventSource.onmessage = function(event) {
+      const data = JSON.parse(event.data);
+      
+      switch (data.type) {
+        case 'connected':
+          console.log('SSE connected:', data.message);
+          break;
+          
+        case 'new_message':
+          console.log('Real-time message received:', data.data);
+          // Add the incoming message to the app
+          addIncomingMessageManually(data.data.from, data.data.message);
+          break;
+          
+        case 'ping':
+          // Keep connection alive
+          break;
+          
+        default:
+          console.log('Unknown event type:', data.type);
+      }
+    };
+    
+    eventSource.onerror = function(event) {
+      console.error('SSE connection error:', event);
+      updateConnectionStatus(false);
+      // Try to reconnect after 5 seconds
+      setTimeout(() => {
+        console.log('Attempting to reconnect to SSE...');
+        connectToRealTimeEvents();
+      }, 5000);
+    };
+    
+    // Store the event source for cleanup
+    window.eventSource = eventSource;
+    
+  } catch (error) {
+    console.error('Error connecting to real-time events:', error);
+    // Fallback to polling
+    setInterval(checkForIncomingMessages, 10000);
+  }
+}
+
+// Update connection status indicator
+function updateConnectionStatus(isConnected) {
+  const statusIndicator = document.getElementById('connection-status');
+  if (statusIndicator) {
+    if (isConnected) {
+      statusIndicator.innerHTML = '<span class="status success">🟢 Live</span>';
+      statusIndicator.title = 'Real-time messaging connected';
+    } else {
+      statusIndicator.innerHTML = '<span class="status error">🔴 Offline</span>';
+      statusIndicator.title = 'Real-time messaging disconnected';
+    }
   }
 }

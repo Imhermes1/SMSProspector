@@ -15,11 +15,54 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
     
-    // Here you would typically:
-    // 1. Store the message in your database
-    // 2. Update your application state
-    // 3. Send notifications to your frontend
-    // 4. Handle opt-out keywords (STOP, UNSUBSCRIBE, etc.)
+    // Store the message in a simple file-based storage
+    // In a production app, you'd use a database
+    const fs = require('fs');
+    const path = require('path');
+    
+    try {
+      const messagesFile = path.join(process.cwd(), 'data', 'incoming-messages.json');
+      const messagesDir = path.dirname(messagesFile);
+      
+      // Create directory if it doesn't exist
+      if (!fs.existsSync(messagesDir)) {
+        fs.mkdirSync(messagesDir, { recursive: true });
+      }
+      
+      // Read existing messages
+      let messages = [];
+      if (fs.existsSync(messagesFile)) {
+        const fileContent = fs.readFileSync(messagesFile, 'utf8');
+        messages = JSON.parse(fileContent);
+      }
+      
+      // Add new message
+      const newMessage = {
+        id: Date.now(),
+        from: from,
+        message: message,
+        timestamp: timestamp || new Date().toISOString(),
+        processed: false
+      };
+      
+      messages.push(newMessage);
+      
+      // Save back to file
+      fs.writeFileSync(messagesFile, JSON.stringify(messages, null, 2));
+      
+      console.log('Message stored successfully:', newMessage);
+      
+      // Broadcast the message to all connected clients
+      try {
+        const { broadcastMessage } = await import('./events.js');
+        broadcastMessage(newMessage);
+        console.log('Message broadcasted to connected clients');
+      } catch (broadcastError) {
+        console.error('Error broadcasting message:', broadcastError);
+      }
+    } catch (storageError) {
+      console.error('Error storing message:', storageError);
+    }
     
     // Check for opt-out keywords
     const optOutKeywords = ['STOP', 'UNSUBSCRIBE', 'QUIT', 'CANCEL'];
