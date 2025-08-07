@@ -132,6 +132,7 @@ function navigateToSection(sectionId) {
     renderOptOutsTable();
   } else if (sectionId === 'send-sms') {
     populateIndividualContactSelect();
+    updateApiStatusDisplay(); // Update API status when entering Send SMS section
   }
 }
 
@@ -839,6 +840,9 @@ function saveApiConfig(formData) {
   // Test connection
   testApiConnection();
   
+  // Force refresh API status across all sections
+  forceRefreshApiStatus();
+  
   // Show success notification
   showNotification('API configuration saved successfully!', 'success');
 }
@@ -898,7 +902,7 @@ function updateApiStatusDisplay() {
   // Update SMS page API status
   const smsApiStatus = document.getElementById('sms-api-status');
   if (smsApiStatus) {
-    if (config.status === 'connected') {
+    if (config.status === 'connected' || config.status === 'configured') {
       smsApiStatus.innerHTML = `
         <div class="api-info">
           <div class="status success">✓ Connected</div>
@@ -1851,6 +1855,7 @@ window.showModal = showModal;
 window.testApiConnection = testApiConnection;
 window.simulateIncomingMessage = simulateIncomingMessage;
 window.handleIncomingSMS = handleIncomingSMS;
+window.forceRefreshApiStatus = forceRefreshApiStatus;
 
 // Close modals when clicking outside
 document.addEventListener('click', function(e) {
@@ -1994,5 +1999,18 @@ async function sendToMobileMessageAPI(messageData) {
   } catch (error) {
     console.error('Mobile Message API Error:', error);
     throw error;
+  }
+}
+
+function forceRefreshApiStatus() {
+  // Force refresh API status display across all sections
+  updateApiStatusDisplay();
+  
+  // If we're on the Send SMS section, trigger a re-render
+  if (appState.currentSection === 'send-sms') {
+    // Small delay to ensure DOM is updated
+    setTimeout(() => {
+      updateApiStatusDisplay();
+    }, 100);
   }
 }
