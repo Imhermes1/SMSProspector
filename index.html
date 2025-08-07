@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMS Manager - Professional SMS Messaging Service</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>SMS Manager</h2>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#dashboard" class="nav-link active" data-section="dashboard">📊 Dashboard</a></li>
+                <li><a href="#contacts" class="nav-link" data-section="contacts">👥 Contacts</a></li>
+                <li><a href="#send-sms" class="nav-link" data-section="send-sms">📱 Send SMS</a></li>
+                <li><a href="#campaigns" class="nav-link" data-section="campaigns">📈 Campaigns</a></li>
+                <li><a href="#opt-outs" class="nav-link" data-section="opt-outs">🚫 Opt-Outs</a></li>
+                <li><a href="#settings" class="nav-link" data-section="settings">⚙️ Settings</a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <h1 id="page-title">Dashboard</h1>
+                <div class="header-actions">
+                    <span class="user-info">Account: admin@company.com</span>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="section active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Total Contacts</h3>
+                        <div class="stat-number" id="total-contacts">0</div>
+                        <div class="stat-change positive">+12 this week</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Messages Sent</h3>
+                        <div class="stat-number" id="messages-sent">0</div>
+                        <div class="stat-change positive">+45 today</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Opt-Out Rate</h3>
+                        <div class="stat-number" id="opt-out-rate">0%</div>
+                        <div class="stat-change negative">-0.3% vs last month</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Delivery Rate</h3>
+                        <div class="stat-number" id="delivery-rate">0%</div>
+                        <div class="stat-change positive">+1.2% improvement</div>
+                    </div>
+                </div>
+
+                <div class="dashboard-actions">
+                    <button class="btn btn--primary" onclick="navigateToSection('send-sms')">📱 Send SMS</button>
+                    <button class="btn btn--secondary" onclick="showAddContactModal()">👤 Add Contact</button>
+                    <button class="btn btn--secondary" onclick="showImportModal()">📁 Import CSV</button>
+                </div>
+
+                <div class="recent-activity">
+                    <h3>Recent Activity</h3>
+                    <div class="activity-list" id="activity-list"></div>
+                </div>
+            </section>
+
+            <!-- Contacts Section -->
+            <section id="contacts" class="section">
+                <div class="section-header">
+                    <div class="section-actions">
+                        <button class="btn btn--primary" onclick="showAddContactModal()">Add Contact</button>
+                        <button class="btn btn--secondary" onclick="showImportModal()">Import CSV</button>
+                        <button class="btn btn--outline" onclick="showDuplicatesModal()">Clear Duplicates</button>
+                    </div>
+                </div>
+
+                <div class="filters-section">
+                    <div class="search-box">
+                        <input type="text" id="contact-search" placeholder="Search contacts..." class="form-control">
+                    </div>
+                    <div class="filter-controls">
+                        <select id="status-filter" class="form-control">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="opted_out">Opted Out</option>
+                        </select>
+                        <select id="suburb-filter" class="form-control">
+                            <option value="">All Suburbs</option>
+                        </select>
+                        <select id="tag-filter" class="form-control">
+                            <option value="">All Tags</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="contacts-table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="select-all"></th>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>Address</th>
+                                <th>Suburb</th>
+                                <th>Status</th>
+                                <th>Tags</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contacts-table-body"></tbody>
+                    </table>
+                </div>
+
+                <div class="bulk-actions" id="bulk-actions" style="display: none;">
+                    <span id="selected-count">0 selected</span>
+                    <button class="btn btn--sm btn--outline" onclick="bulkDelete()">Delete</button>
+                    <button class="btn btn--sm btn--outline" onclick="bulkExport()">Export</button>
+                </div>
+            </section>
+
+            <!-- Send SMS Section -->
+            <section id="send-sms" class="section">
+                <div class="sms-compose">
+                    <div class="recipient-selection">
+                        <h3>Recipients</h3>
+                        <div class="recipient-options">
+                            <label class="radio-option">
+                                <input type="radio" name="recipient-type" value="individual" checked>
+                                Individual Contact
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="recipient-type" value="group">
+                                Group Selection
+                            </label>
+                        </div>
+                        <div id="individual-selection">
+                            <select id="individual-contact" class="form-control">
+                                <option value="">Select a contact...</option>
+                            </select>
+                        </div>
+                        <div id="group-selection" style="display: none;">
+                            <div class="filter-group">
+                                <label>Filter by Status:</label>
+                                <select id="group-status-filter" class="form-control">
+                                    <option value="">All</option>
+                                    <option value="active">Active Only</option>
+                                </select>
+                            </div>
+                            <div class="selected-recipients" id="selected-recipients"></div>
+                        </div>
+                    </div>
+
+                    <div class="message-composition">
+                        <h3>Message</h3>
+                        <div class="placeholder-buttons">
+                            <button type="button" class="btn btn--sm btn--outline" onclick="insertPlaceholder('{{firstName}}')">First Name</button>
+                            <button type="button" class="btn btn--sm btn--outline" onclick="insertPlaceholder('{{lastName}}')">Last Name</button>
+                            <button type="button" class="btn btn--sm btn--outline" onclick="insertPlaceholder('{{phone}}')">Phone</button>
+                            <button type="button" class="btn btn--sm btn--outline" onclick="insertPlaceholder('{{email}}')">Email</button>
+                            <button type="button" class="btn btn--sm btn--outline" onclick="insertPlaceholder('{{address}}')">Address</button>
+                            <button type="button" class="btn btn--sm btn--outline" onclick="insertPlaceholder('{{suburb}}')">Suburb</button>
+                        </div>
+                        <textarea id="message-text" class="form-control message-textarea" placeholder="Type your message..."></textarea>
+                        <div class="message-info">
+                            <span id="character-count">0/160 characters</span>
+                        </div>
+                    </div>
+
+                    <div class="message-preview">
+                        <h3>Preview</h3>
+                        <div class="preview-box" id="message-preview">Your message will appear here with placeholders filled...</div>
+                    </div>
+
+                    <div class="send-options">
+                        <div class="send-timing">
+                            <label class="radio-option">
+                                <input type="radio" name="send-timing" value="now" checked>
+                                Send Now
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="send-timing" value="schedule">
+                                Schedule
+                            </label>
+                            <input type="datetime-local" id="schedule-time" class="form-control" style="display: none;">
+                        </div>
+                        <div class="api-status">
+                            <h4>Mobile Message API Status</h4>
+                            <div class="api-info">
+                                <div class="status success">✓ Connected</div>
+                                <div>Endpoint: https://api.mobilemessage.com.au/v1/messages</div>
+                                <div>Rate Limit: 100 messages/minute</div>
+                            </div>
+                        </div>
+                        <button class="btn btn--primary btn--lg" id="send-message-btn" onclick="sendMessage()">Send Message</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Campaigns Section -->
+            <section id="campaigns" class="section">
+                <div class="campaigns-list">
+                    <h3>Campaign History</h3>
+                    <div class="table-container">
+                        <table class="campaigns-table">
+                            <thead>
+                                <tr>
+                                    <th>Campaign Name</th>
+                                    <th>Messages Sent</th>
+                                    <th>Delivery Rate</th>
+                                    <th>Opt-Out Rate</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="campaigns-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Opt-Outs Section -->
+            <section id="opt-outs" class="section">
+                <div class="opt-outs-header">
+                    <h3>Opt-Out Management</h3>
+                    <div class="opt-out-keywords">
+                        <span class="keyword-badge">STOP</span>
+                        <span class="keyword-badge">UNSUBSCRIBE</span>
+                        <span class="keyword-badge">QUIT</span>
+                        <span class="keyword-badge">CANCEL</span>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table class="opt-outs-table">
+                        <thead>
+                            <tr>
+                                <th>Contact</th>
+                                <th>Phone</th>
+                                <th>Opt-Out Reason</th>
+                                <th>Date Opted Out</th>
+                                <th>Original Message</th>
+                                <th>Campaign</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="opt-outs-table-body"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section id="settings" class="section">
+                <div class="settings-content">
+                    <h3>API Configuration</h3>
+                    <div class="api-config">
+                        <div class="form-group">
+                            <label class="form-label">API Provider</label>
+                            <input type="text" class="form-control" value="Mobile Message Australia" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">API Endpoint</label>
+                            <input type="text" class="form-control" value="https://api.mobilemessage.com.au/v1/messages" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Connection Status</label>
+                            <div class="status success">✓ Connected</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Rate Limit</label>
+                            <input type="text" class="form-control" value="100 messages/minute" readonly>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Add Contact Modal -->
+    <div id="add-contact-modal" class="modal hidden">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3>Add New Contact</h3>
+                <button class="modal-close" onclick="hideModal('add-contact-modal')">&times;</button>
+            </div>
+            <form id="add-contact-form">
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">First Name *</label>
+                            <input type="text" name="firstName" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Last Name *</label>
+                            <input type="text" name="lastName" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone *</label>
+                        <input type="tel" name="phone" class="form-control" placeholder="+61..." required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Address</label>
+                        <input type="text" name="address" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Suburb</label>
+                        <input type="text" name="suburb" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tags (comma separated)</label>
+                        <input type="text" name="tags" class="form-control" placeholder="customer, vip, local">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn--outline" onclick="hideModal('add-contact-modal')">Cancel</button>
+                    <button type="submit" class="btn btn--primary">Add Contact</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Import CSV Modal -->
+    <div id="import-modal" class="modal hidden">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3>Import Contacts from CSV</h3>
+                <button class="modal-close" onclick="hideModal('import-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="csv-upload-area">
+                    <div class="upload-zone" id="upload-zone">
+                        <div class="upload-icon">📁</div>
+                        <p>Drop your CSV file here or click to browse</p>
+                        <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
+                        <button type="button" class="btn btn--outline" onclick="document.getElementById('csv-file-input').click()">Choose File</button>
+                    </div>
+                </div>
+                <div class="csv-format">
+                    <h4>Expected CSV Format:</h4>
+                    <code>firstName,lastName,phone,email,address,suburb,tags</code>
+                    <div class="csv-example">
+                        <p><strong>Example:</strong></p>
+                        <code>John,Smith,+61412345678,john@email.com,123 Main St,Melbourne,customer;vip</code>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn--outline" onclick="hideModal('import-modal')">Cancel</button>
+                <button type="button" class="btn btn--primary" onclick="processCSVImport()">Import Contacts</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Duplicates Modal -->
+    <div id="duplicates-modal" class="modal hidden">
+        <div class="modal-dialog modal-large">
+            <div class="modal-header">
+                <h3>Duplicate Contacts Found</h3>
+                <button class="modal-close" onclick="hideModal('duplicates-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="duplicates-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn--outline" onclick="hideModal('duplicates-modal')">Cancel</button>
+                <button type="button" class="btn btn--primary" onclick="mergeDuplicates()">Merge Selected</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
