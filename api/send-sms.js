@@ -19,12 +19,22 @@ export default async function handler(req, res) {
     
     // Prepare the request payload for Mobile Message API
     const payload = {
-      messages: messages.map(msg => ({
-        to: msg.to,
-        message: msg.message,
-        sender: msg.sender || 'SMSProspector',
-        custom_ref: msg.custom_ref || `msg_${Date.now()}`
-      }))
+      messages: messages.map(msg => {
+        // Convert international format to Australian format for Mobile Message API
+        let phoneNumber = msg.to;
+        if (phoneNumber.startsWith('+61')) {
+          phoneNumber = '0' + phoneNumber.substring(3); // +61412345678 -> 0412345678
+        } else if (phoneNumber.startsWith('61')) {
+          phoneNumber = '0' + phoneNumber.substring(2); // 61412345678 -> 0412345678
+        }
+        
+        return {
+          to: phoneNumber,
+          message: msg.message,
+          sender: msg.sender || 'SMSProspector',
+          custom_ref: msg.custom_ref || `msg_${Date.now()}`
+        };
+      })
     };
 
     console.log('Sending to Mobile Message API:', {
@@ -82,11 +92,32 @@ export default async function handler(req, res) {
 
     console.log('Mobile Message API success:', responseData);
 
-    return res.status(200).json({
-      success: true,
-      message: 'Messages sent successfully',
-      data: responseData
-    });
+    // Check if the API response indicates success
+    if (responseData.status === 'complete' && responseData.results) {
+      // Check individual message results
+      const failedMessages = responseData.results.filter(result => result.status !== 'success');
+      
+      if (failedMessages.length > 0) {
+        console.error('Some messages failed:', failedMessages);
+        return res.status(400).json({
+          error: 'Some messages failed to send',
+          details: responseData,
+          failedMessages: failedMessages
+        });
+      }
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Messages sent successfully',
+        data: responseData
+      });
+    } else {
+      console.error('Unexpected API response format:', responseData);
+      return res.status(500).json({
+        error: 'Unexpected API response format',
+        details: responseData
+      });
+    }
 
   } catch (error) {
     console.error('Error sending SMS:', error);

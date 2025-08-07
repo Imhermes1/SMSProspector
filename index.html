@@ -338,6 +338,10 @@
                             </div>
                         </div>
                         <div class="form-group">
+                            <label class="form-label">Sender ID</label>
+                            <input type="text" id="api-sender-id" class="form-control" value="Not configured" readonly>
+                        </div>
+                        <div class="form-group">
                             <label class="form-label">Rate Limit</label>
                             <input type="text" id="api-rate-limit" class="form-control" value="Not configured" readonly>
                         </div>
@@ -478,10 +482,15 @@
                         <label class="form-label">API Key *</label>
                         <input type="password" name="apiKey" class="form-control" placeholder="Your API key" required>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">API Secret</label>
-                        <input type="password" name="apiSecret" class="form-control" placeholder="Your API secret (if required)">
-                    </div>
+                                            <div class="form-group">
+                            <label class="form-label">API Secret</label>
+                            <input type="password" name="apiSecret" class="form-control" placeholder="Your API secret (if required)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Sender ID</label>
+                            <input type="text" name="senderId" class="form-control" placeholder="Your registered sender ID (e.g., CompanyABC)">
+                            <small class="form-help">This must be registered in your Mobile Message account</small>
+                        </div>
                     <div class="form-group">
                         <label class="form-label">Rate Limit</label>
                         <input type="text" name="rateLimit" class="form-control" placeholder="e.g., 5 concurrent requests" value="5 concurrent requests">

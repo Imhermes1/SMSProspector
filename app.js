@@ -737,15 +737,15 @@ function sendMessage() {
   // Get contact details for recipients
   const recipientContacts = appState.contacts.filter(c => recipients.includes(c.id));
   
-  // Prepare message data for Mobile Message API
-  const messageData = {
-    messages: recipientContacts.map(contact => ({
-      to: contact.phone,
-      message: messageValue,
-      sender: appState.apiConfig.provider || 'SMSProspector',
-      custom_ref: `msg_${Date.now()}_${contact.id}`
-    }))
-  };
+        // Prepare message data for Mobile Message API
+      const messageData = {
+        messages: recipientContacts.map(contact => ({
+          to: contact.phone,
+          message: messageValue,
+          sender: appState.apiConfig.senderId || 'SMSProspector', // Use configured sender ID or default
+          custom_ref: `msg_${Date.now()}_${contact.id}`
+        }))
+      };
   
   // Send to Mobile Message API
   sendToMobileMessageAPI(messageData)
@@ -936,10 +936,12 @@ function updateApiStatusDisplay() {
   const endpointField = document.getElementById('api-endpoint');
   const statusField = document.getElementById('api-status');
   const rateLimitField = document.getElementById('api-rate-limit');
+  const senderIdField = document.getElementById('api-sender-id');
   
   if (providerField) providerField.value = config.provider || 'Not configured';
   if (endpointField) endpointField.value = config.endpoint || 'Not configured';
   if (rateLimitField) rateLimitField.value = config.rateLimit || 'Not configured';
+  if (senderIdField) senderIdField.value = config.senderId || 'Not configured';
   
   if (statusField) {
     if (config.status === 'connected') {
@@ -1421,7 +1423,7 @@ function sendReply() {
     messages: [{
       to: contact.phone,
       message: messageText,
-      sender: appState.apiConfig.provider || 'SMSProspector',
+      sender: appState.apiConfig.senderId || 'SMSProspector', // Use configured sender ID or default
       custom_ref: `msg_${Date.now()}`
     }]
   };
