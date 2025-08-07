@@ -811,7 +811,17 @@ function reOptIn(contactId) {
 }
 
 // API Configuration Management
-function saveApiConfig(configData) {
+function saveApiConfig(formData) {
+  // Convert FormData to object
+  const configData = {};
+  if (formData instanceof FormData) {
+    for (let [key, value] of formData.entries()) {
+      configData[key] = value;
+    }
+  } else {
+    configData = formData;
+  }
+  
   appState.apiConfig = {
     ...appState.apiConfig,
     ...configData,
@@ -828,9 +838,12 @@ function saveApiConfig(configData) {
   
   // Test connection
   testApiConnection();
+  
+  // Show success notification
+  showNotification('API configuration saved successfully!', 'success');
 }
 
-function testApiConnection() {
+async function testApiConnection() {
   const config = appState.apiConfig;
   
   if (!config.apiKey || !config.endpoint) {
@@ -838,15 +851,32 @@ function testApiConnection() {
     return;
   }
   
-  // Simulate API test
   showNotification('Testing API connection...', 'info');
   
-  setTimeout(() => {
-    // Simulate successful connection
-    appState.apiConfig.status = "connected";
+  try {
+    // Test the API by getting account balance
+    const credentials = btoa(`${config.apiKey}:${config.apiSecret}`);
+    const response = await fetch('https://api.mobilemessage.com.au/v1/account/balance', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.ok) {
+      appState.apiConfig.status = "connected";
+      updateApiStatusDisplay();
+      showNotification('API connection successful!', 'success');
+    } else {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error('API test failed:', error);
+    appState.apiConfig.status = "configured";
     updateApiStatusDisplay();
-    showNotification('API connection successful!', 'success');
-  }, 2000);
+    showNotification('API connection failed: ' + error.message, 'error');
+  }
 }
 
 function updateApiStatusDisplay() {
