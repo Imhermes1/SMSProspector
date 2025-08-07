@@ -782,11 +782,26 @@ function sendMessage() {
       // Add messages to app state and conversations
       const messageId = appState.messages.length + 1;
       recipientContacts.forEach((contact, index) => {
+        // Get the personalized message for this contact
+        let personalizedMessage = messageValue;
+        personalizedMessage = personalizedMessage.replace(/\{firstname\}/gi, contact.firstName || '');
+        personalizedMessage = personalizedMessage.replace(/\{lastname\}/gi, contact.lastName || '');
+        personalizedMessage = personalizedMessage.replace(/\{fullname\}/gi, `${contact.firstName || ''} ${contact.lastName || ''}`.trim());
+        personalizedMessage = personalizedMessage.replace(/\{phone\}/gi, contact.phone || '');
+        personalizedMessage = personalizedMessage.replace(/\{email\}/gi, contact.email || '');
+        personalizedMessage = personalizedMessage.replace(/\{\{firstName\}\}/gi, contact.firstName || '');
+        personalizedMessage = personalizedMessage.replace(/\{\{lastName\}\}/gi, contact.lastName || '');
+        personalizedMessage = personalizedMessage.replace(/\{\{fullName\}\}/gi, `${contact.firstName || ''} ${contact.lastName || ''}`.trim());
+        personalizedMessage = personalizedMessage.replace(/\{\{phone\}\}/gi, contact.phone || '');
+        personalizedMessage = personalizedMessage.replace(/\{\{email\}\}/gi, contact.email || '');
+        personalizedMessage = personalizedMessage.replace(/\{\{address\}\}/gi, contact.address || '');
+        personalizedMessage = personalizedMessage.replace(/\{\{suburb\}\}/gi, contact.suburb || '');
+        
         // Add to messages array
         const sentMessage = {
           id: messageId + index,
           contactId: contact.id,
-          message: messageValue,
+          message: personalizedMessage, // Store the personalized message
           status: 'delivered',
           sentAt: new Date().toISOString(),
           campaign: 'Manual Send'
@@ -812,7 +827,7 @@ function sendMessage() {
         const newMessageId = Math.max(...conversation.messages.map(m => m.id), 0) + 1;
         const conversationMessage = {
           id: newMessageId,
-          message: messageValue,
+          message: personalizedMessage, // Store the personalized message
           status: 'delivered',
           sentAt: new Date().toISOString(),
           direction: 'outbound'
@@ -1988,6 +2003,7 @@ window.testApiConnection = testApiConnection;
   window.forceRefreshApiStatus = forceRefreshApiStatus;
   window.addIncomingMessageManually = addIncomingMessageManually;
   window.exportMessagesHistory = exportMessagesHistory;
+  window.testWebhook = testWebhook;
 
 // Close modals when clicking outside
 document.addEventListener('click', function(e) {
@@ -2491,4 +2507,38 @@ function generateMessagesCSV(messages) {
   });
   
   return [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+}
+
+// Test webhook function
+function testWebhook() {
+  console.log('Testing webhook...');
+  
+  // Simulate a webhook payload
+  const testPayload = {
+    to: "+61412345678",
+    message: "This is a test reply",
+    sender: "+61412345678",
+    received_at: new Date().toISOString(),
+    type: "inbound",
+    original_message_id: "test-123",
+    original_custom_ref: "test-ref"
+  };
+  
+  // Send to our webhook
+  fetch('/api/webhooks/inbound', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(testPayload)
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log('Webhook test response:', data);
+    showNotification('Webhook test completed - check console', 'info');
+  })
+  .catch(error => {
+    console.error('Webhook test error:', error);
+    showNotification('Webhook test failed - check console', 'error');
+  });
 }
