@@ -2003,32 +2003,36 @@ function simulateIncomingMessage(phone, message) {
 async function sendToMobileMessageAPI(messageData) {
   const config = appState.apiConfig;
   
-  if (!config.apiKey || !config.endpoint) {
-    throw new Error('API not configured');
+  if (!config.key || !config.secret || !config.endpoint) {
+    throw new Error('API configuration is incomplete');
   }
   
-  // Create Basic Auth header
-  const credentials = btoa(`${config.apiKey}:${config.apiSecret}`);
-  
   try {
-    const response = await fetch(config.endpoint, {
+    // Use our server-side proxy to avoid CORS issues
+    const response = await fetch('/api/send-sms', {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${credentials}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(messageData)
+      body: JSON.stringify({
+        messages: messageData.messages,
+        apiConfig: {
+          key: config.key,
+          secret: config.secret,
+          endpoint: config.endpoint
+        }
+      })
     });
     
+    const responseData = await response.json();
+    
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      throw new Error(responseData.error || `HTTP ${response.status}: ${response.statusText}`);
     }
     
-    const result = await response.json();
-    return result;
+    return responseData;
   } catch (error) {
-    console.error('Mobile Message API Error:', error);
+    console.error('API call failed:', error);
     throw error;
   }
 }
