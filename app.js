@@ -739,12 +739,22 @@ function sendMessage() {
   
         // Prepare message data for Mobile Message API
       const messageData = {
-        messages: recipientContacts.map(contact => ({
-          to: contact.phone,
-          message: messageValue,
-          sender: appState.apiConfig.senderId || 'SMSProspector', // Use configured sender ID or default
-          custom_ref: `msg_${Date.now()}_${contact.id}`
-        }))
+        messages: recipientContacts.map(contact => {
+          // Replace placeholders in the message
+          let personalizedMessage = messageValue;
+          personalizedMessage = personalizedMessage.replace(/\{firstname\}/gi, contact.firstName || '');
+          personalizedMessage = personalizedMessage.replace(/\{lastname\}/gi, contact.lastName || '');
+          personalizedMessage = personalizedMessage.replace(/\{fullname\}/gi, `${contact.firstName || ''} ${contact.lastName || ''}`.trim());
+          personalizedMessage = personalizedMessage.replace(/\{phone\}/gi, contact.phone || '');
+          personalizedMessage = personalizedMessage.replace(/\{email\}/gi, contact.email || '');
+          
+          return {
+            to: contact.phone,
+            message: personalizedMessage,
+            sender: appState.apiConfig.senderId || 'SMSProspector', // Use configured sender ID or default
+            custom_ref: `msg_${Date.now()}_${contact.id}`
+          };
+        })
       };
   
   // Send to Mobile Message API
@@ -1922,9 +1932,10 @@ window.reOptIn = reOptIn;
 window.hideModal = hideModal;
 window.showModal = showModal;
 window.testApiConnection = testApiConnection;
-window.simulateIncomingMessage = simulateIncomingMessage;
-window.handleIncomingSMS = handleIncomingSMS;
-window.forceRefreshApiStatus = forceRefreshApiStatus;
+  window.simulateIncomingMessage = simulateIncomingMessage;
+  window.handleIncomingSMS = handleIncomingSMS;
+  window.forceRefreshApiStatus = forceRefreshApiStatus;
+  window.addIncomingMessageManually = addIncomingMessageManually;
 
 // Close modals when clicking outside
 document.addEventListener('click', function(e) {
@@ -2035,6 +2046,70 @@ function simulateIncomingMessage(phone, message) {
     message: message,
     timestamp: new Date().toISOString()
   });
+}
+
+// Function to manually add an incoming message (for testing replies)
+function addIncomingMessageManually(phone, message) {
+  console.log('Manually adding incoming message:', { phone, message });
+  
+  // Find or create contact
+  let contact = getContactByPhone(phone);
+  if (!contact) {
+    const newId = appState.contacts.length > 0 ? Math.max(...appState.contacts.map(c => c.id)) + 1 : 1;
+    contact = {
+      id: newId,
+      firstName: 'Unknown',
+      lastName: 'Contact',
+      phone: formatAustralianPhoneNumber(phone),
+      email: '',
+      address: '',
+      suburb: '',
+      tags: ['unknown'],
+      status: 'active',
+      dateAdded: new Date().toISOString().split('T')[0]
+    };
+    appState.contacts.push(contact);
+    saveContactsToStorage();
+  }
+  
+  // Find or create conversation
+  let conversation = getConversationByPhone(phone);
+  if (!conversation) {
+    const newConversationId = appState.conversations.length > 0 ? Math.max(...appState.conversations.map(c => c.id)) + 1 : 1;
+    conversation = {
+      id: newConversationId,
+      contactId: contact.id,
+      messages: [],
+      unreadCount: 0,
+      lastActivity: new Date().toISOString()
+    };
+    appState.conversations.push(conversation);
+  }
+  
+  // Add message to conversation
+  const newMessageId = Math.max(...conversation.messages.map(m => m.id), 0) + 1;
+  const newMessage = {
+    id: newMessageId,
+    message: message,
+    status: 'received',
+    receivedAt: new Date().toISOString(),
+    direction: 'inbound'
+  };
+  
+  conversation.messages.push(newMessage);
+  conversation.lastActivity = newMessage.receivedAt;
+  conversation.unreadCount += 1;
+  
+  // Save to storage
+  saveConversationsToStorage();
+  
+  // Update UI if on messenger page
+  if (appState.currentSection === 'messenger') {
+    renderMessenger();
+  }
+  
+  console.log('Incoming message added successfully');
+  showNotification(`New message from ${contact.firstName} ${contact.lastName}`, 'info');
 }
 
 // Local Storage Functions
