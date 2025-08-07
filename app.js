@@ -2003,11 +2003,20 @@ function simulateIncomingMessage(phone, message) {
 async function sendToMobileMessageAPI(messageData) {
   const config = appState.apiConfig;
   
-  if (!config.key || !config.secret || !config.endpoint) {
+  if (!config.apiKey || !config.apiSecret || !config.endpoint) {
     throw new Error('API configuration is incomplete');
   }
   
   try {
+    console.log('Sending SMS request to proxy:', {
+      messages: messageData.messages,
+      apiConfig: {
+        key: config.key,
+        secret: config.secret ? '***' : 'missing',
+        endpoint: config.endpoint
+      }
+    });
+
     // Use our server-side proxy to avoid CORS issues
     const response = await fetch('/api/send-sms', {
       method: 'POST',
@@ -2017,14 +2026,17 @@ async function sendToMobileMessageAPI(messageData) {
       body: JSON.stringify({
         messages: messageData.messages,
         apiConfig: {
-          key: config.key,
-          secret: config.secret,
+          key: config.apiKey,
+          secret: config.apiSecret,
           endpoint: config.endpoint
         }
       })
     });
     
+    console.log('Proxy response status:', response.status);
+    
     const responseData = await response.json();
+    console.log('Proxy response data:', responseData);
     
     if (!response.ok) {
       throw new Error(responseData.error || `HTTP ${response.status}: ${response.statusText}`);
@@ -2033,6 +2045,11 @@ async function sendToMobileMessageAPI(messageData) {
     return responseData;
   } catch (error) {
     console.error('API call failed:', error);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
     throw error;
   }
 }
