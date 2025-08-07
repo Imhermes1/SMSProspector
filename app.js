@@ -38,6 +38,10 @@ let appState = {
 // Initialize Application
 document.addEventListener('DOMContentLoaded', function() {
   console.log('DOM loaded, initializing application...');
+  
+  // Load all saved data from localStorage
+  loadAllDataFromStorage();
+  
   initializeNavigation();
   initializeEventListeners();
   updateDashboardStats();
@@ -307,10 +311,14 @@ function updateSelectedContacts() {
 }
 
 function addContact(contactData) {
+  console.log('Adding contact with data:', contactData);
+  
   // Format and validate phone number
   const formattedPhone = formatAustralianPhoneNumber(contactData.phone);
+  console.log('Formatted phone:', formattedPhone);
   
   if (!validateAustralianPhoneNumber(formattedPhone)) {
+    console.error('Invalid phone number:', contactData.phone);
     showNotification('Please enter a valid Australian phone number', 'error');
     return;
   }
@@ -318,6 +326,7 @@ function addContact(contactData) {
   // Check for duplicate phone number
   const existingContact = getContactByPhone(formattedPhone);
   if (existingContact) {
+    console.error('Duplicate phone number found:', formattedPhone);
     showNotification('A contact with this phone number already exists', 'error');
     return;
   }
@@ -331,7 +340,14 @@ function addContact(contactData) {
     dateAdded: new Date().toISOString().split('T')[0]
   };
   
+  console.log('New contact object:', newContact);
+  
   appState.contacts.push(newContact);
+  console.log('Contacts array after adding:', appState.contacts);
+  
+  // Save contacts to localStorage
+  saveContactsToStorage();
+  
   renderContactsTable();
   populateFilterOptions();
   populateIndividualContactSelect();
@@ -391,6 +407,7 @@ function updateContact(contactId, formData) {
 function deleteContact(contactId) {
   if (confirm('Are you sure you want to delete this contact?')) {
     appState.contacts = appState.contacts.filter(c => c.id !== contactId);
+    saveContactsToStorage();
     renderContactsTable();
     populateFilterOptions();
     populateIndividualContactSelect();
@@ -402,6 +419,7 @@ function bulkDelete() {
   if (confirm(`Are you sure you want to delete ${appState.selectedContacts.length} contacts?`)) {
     appState.contacts = appState.contacts.filter(c => !appState.selectedContacts.includes(c.id));
     appState.selectedContacts = [];
+    saveContactsToStorage();
     renderContactsTable();
     populateFilterOptions();
     populateIndividualContactSelect();
@@ -746,6 +764,9 @@ function sendMessage() {
           campaign: 'Manual Send'
         });
       });
+      
+      // Save messages to storage
+      saveMessagesToStorage();
       
       showNotification(`Message sent successfully to ${recipients.length} recipient(s)`, 'success');
       
@@ -1203,6 +1224,9 @@ function confirmCSVImport() {
       skippedCount++;
     }
   });
+  
+  // Save contacts to storage
+  saveContactsToStorage();
   
   renderContactsTable();
   populateFilterOptions();
@@ -1690,9 +1714,17 @@ function initializeEventListeners() {
   // Add contact form
   const addContactForm = document.getElementById('add-contact-form');
   if (addContactForm) {
+    console.log('Contact form found, adding event listener');
     addContactForm.addEventListener('submit', function(e) {
       e.preventDefault();
+      console.log('Contact form submitted');
+      
       const formData = new FormData(this);
+      console.log('Form data entries:');
+      for (let [key, value] of formData.entries()) {
+        console.log(`${key}: ${value}`);
+      }
+      
       const contactData = {
         firstName: formData.get('firstName'),
         lastName: formData.get('lastName'),
@@ -1702,9 +1734,13 @@ function initializeEventListeners() {
         suburb: formData.get('suburb') || '',
         tags: formData.get('tags') ? formData.get('tags').split(',').map(t => t.trim()).filter(t => t) : []
       };
+      
+      console.log('Processed contact data:', contactData);
       addContact(contactData);
       this.reset();
     });
+  } else {
+    console.error('Contact form not found!');
   }
   
   // SMS composition
@@ -1997,6 +2033,105 @@ function simulateIncomingMessage(phone, message) {
     message: message,
     timestamp: new Date().toISOString()
   });
+}
+
+// Local Storage Functions
+function saveContactsToStorage() {
+  try {
+    localStorage.setItem('smsProspectorContacts', JSON.stringify(appState.contacts));
+    console.log('Contacts saved to localStorage:', appState.contacts.length, 'contacts');
+  } catch (error) {
+    console.error('Error saving contacts to localStorage:', error);
+  }
+}
+
+function loadContactsFromStorage() {
+  try {
+    const savedContacts = localStorage.getItem('smsProspectorContacts');
+    if (savedContacts) {
+      appState.contacts = JSON.parse(savedContacts);
+      console.log('Contacts loaded from localStorage:', appState.contacts.length, 'contacts');
+    }
+  } catch (error) {
+    console.error('Error loading contacts from localStorage:', error);
+  }
+}
+
+function saveMessagesToStorage() {
+  try {
+    localStorage.setItem('smsProspectorMessages', JSON.stringify(appState.messages));
+    console.log('Messages saved to localStorage:', appState.messages.length, 'messages');
+  } catch (error) {
+    console.error('Error saving messages to localStorage:', error);
+  }
+}
+
+function loadMessagesFromStorage() {
+  try {
+    const savedMessages = localStorage.getItem('smsProspectorMessages');
+    if (savedMessages) {
+      appState.messages = JSON.parse(savedMessages);
+      console.log('Messages loaded from localStorage:', appState.messages.length, 'messages');
+    }
+  } catch (error) {
+    console.error('Error loading messages from localStorage:', error);
+  }
+}
+
+function saveConversationsToStorage() {
+  try {
+    localStorage.setItem('smsProspectorConversations', JSON.stringify(appState.conversations));
+    console.log('Conversations saved to localStorage:', appState.conversations.length, 'conversations');
+  } catch (error) {
+    console.error('Error saving conversations to localStorage:', error);
+  }
+}
+
+function loadConversationsFromStorage() {
+  try {
+    const savedConversations = localStorage.getItem('smsProspectorConversations');
+    if (savedConversations) {
+      appState.conversations = JSON.parse(savedConversations);
+      console.log('Conversations loaded from localStorage:', appState.conversations.length, 'conversations');
+    }
+  } catch (error) {
+    console.error('Error loading conversations from localStorage:', error);
+  }
+}
+
+function saveOptOutsToStorage() {
+  try {
+    localStorage.setItem('smsProspectorOptOuts', JSON.stringify(appState.optOuts));
+    console.log('Opt-outs saved to localStorage:', appState.optOuts.length, 'opt-outs');
+  } catch (error) {
+    console.error('Error saving opt-outs to localStorage:', error);
+  }
+}
+
+function loadOptOutsFromStorage() {
+  try {
+    const savedOptOuts = localStorage.getItem('smsProspectorOptOuts');
+    if (savedOptOuts) {
+      appState.optOuts = JSON.parse(savedOptOuts);
+      console.log('Opt-outs loaded from localStorage:', appState.optOuts.length, 'opt-outs');
+    }
+  } catch (error) {
+    console.error('Error loading opt-outs from localStorage:', error);
+  }
+}
+
+function saveAllDataToStorage() {
+  saveContactsToStorage();
+  saveMessagesToStorage();
+  saveConversationsToStorage();
+  saveOptOutsToStorage();
+}
+
+function loadAllDataFromStorage() {
+  loadContactsFromStorage();
+  loadMessagesFromStorage();
+  loadConversationsFromStorage();
+  loadOptOutsFromStorage();
 }
 
 // Mobile Message API Functions
