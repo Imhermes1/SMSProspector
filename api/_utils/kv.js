@@ -36,7 +36,8 @@ async function upstashPipeline(commands) {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ commands })
+    // Upstash expects a JSON array of command arrays for /pipeline
+    body: JSON.stringify(commands)
   });
 
   if (!response.ok) {
@@ -53,7 +54,7 @@ export async function kvPushIncomingMessage(messageObject, max = 1000) {
   try {
     const res = await upstashPipeline([
       ['LPUSH', 'incoming_messages', payload],
-      ['LTRIM', 'incoming_messages', '0', String(max - 1)]
+      ['LTRIM', 'incoming_messages', 0, max - 1]
     ]);
     return res;
   } catch (err) {
@@ -66,7 +67,7 @@ export async function kvPushIncomingMessage(messageObject, max = 1000) {
 export async function kvPopIncomingMessages(count = 100) {
   try {
     const res = await upstashPipeline([
-      ['LPOP', 'incoming_messages', String(count)]
+      ['LPOP', 'incoming_messages', count]
     ]);
     const first = Array.isArray(res) ? res[0] : res; // [{ result: [...] }]
     const raw = (first && first.result) ? first.result : [];
