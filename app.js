@@ -1211,7 +1211,7 @@ function parseCSVWithMapping(csv) {
       });
       
       // Validate required fields
-      if (contact.firstName && contact.lastName && contact.phone) {
+      if (contact.firstName && contact.phone) {
         contacts.push(contact);
       }
     }
@@ -1401,7 +1401,7 @@ function confirmCSVImport() {
   let invalidPhoneCount = 0;
   
   data.contacts.forEach(contactData => {
-    if (contactData.firstName && contactData.lastName && contactData.phone) {
+    if (contactData.firstName && contactData.phone) {
       const result = addContactFromCSV(contactData);
       if (result.success) {
         importedCount++;
