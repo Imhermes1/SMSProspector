@@ -799,17 +799,12 @@ function sendMessage() {
         // Prepare message data for Mobile Message API
       const messageData = {
         messages: recipientContacts.map(contact => {
-          // Replace placeholders in the message
+          // Replace placeholders in the message (double-brace first to avoid leftover braces)
           let personalizedMessage = messageValue;
-          
-          // Handle single-brace placeholders
-          personalizedMessage = personalizedMessage.replace(/\{firstname\}/gi, contact.firstName || '');
-          personalizedMessage = personalizedMessage.replace(/\{lastname\}/gi, contact.lastName || '');
-          personalizedMessage = personalizedMessage.replace(/\{fullname\}/gi, `${contact.firstName || ''} ${contact.lastName || ''}`.trim());
-          personalizedMessage = personalizedMessage.replace(/\{phone\}/gi, contact.phone || '');
-          personalizedMessage = personalizedMessage.replace(/\{email\}/gi, contact.email || '');
-          
-          // Handle double-brace placeholders ({{firstName}})
+
+          const agentName = (appState.profile && appState.profile.fullName) ? appState.profile.fullName : (appState.apiConfig.senderId || '');
+
+          // Double-brace placeholders
           personalizedMessage = personalizedMessage.replace(/\{\{firstName\}\}/gi, contact.firstName || '');
           personalizedMessage = personalizedMessage.replace(/\{\{lastName\}\}/gi, contact.lastName || '');
           personalizedMessage = personalizedMessage.replace(/\{\{fullName\}\}/gi, `${contact.firstName || ''} ${contact.lastName || ''}`.trim());
@@ -817,6 +812,15 @@ function sendMessage() {
           personalizedMessage = personalizedMessage.replace(/\{\{email\}\}/gi, contact.email || '');
           personalizedMessage = personalizedMessage.replace(/\{\{address\}\}/gi, contact.address || '');
           personalizedMessage = personalizedMessage.replace(/\{\{suburb\}\}/gi, contact.suburb || '');
+          personalizedMessage = personalizedMessage.replace(/\{\{agentName\}\}/gi, agentName || '');
+
+          // Single-brace placeholders
+          personalizedMessage = personalizedMessage.replace(/\{firstname\}/gi, contact.firstName || '');
+          personalizedMessage = personalizedMessage.replace(/\{lastname\}/gi, contact.lastName || '');
+          personalizedMessage = personalizedMessage.replace(/\{fullname\}/gi, `${contact.firstName || ''} ${contact.lastName || ''}`.trim());
+          personalizedMessage = personalizedMessage.replace(/\{phone\}/gi, contact.phone || '');
+          personalizedMessage = personalizedMessage.replace(/\{email\}/gi, contact.email || '');
+          personalizedMessage = personalizedMessage.replace(/\{agentname\}/gi, agentName || '');
           
           return {
             to: contact.phone,
@@ -835,13 +839,9 @@ function sendMessage() {
       // Add messages to app state and conversations
       const messageId = appState.messages.length + 1;
       recipientContacts.forEach((contact, index) => {
-        // Get the personalized message for this contact
+        // Get the personalized message for this contact (double-brace first)
         let personalizedMessage = messageValue;
-        personalizedMessage = personalizedMessage.replace(/\{firstname\}/gi, contact.firstName || '');
-        personalizedMessage = personalizedMessage.replace(/\{lastname\}/gi, contact.lastName || '');
-        personalizedMessage = personalizedMessage.replace(/\{fullname\}/gi, `${contact.firstName || ''} ${contact.lastName || ''}`.trim());
-        personalizedMessage = personalizedMessage.replace(/\{phone\}/gi, contact.phone || '');
-        personalizedMessage = personalizedMessage.replace(/\{email\}/gi, contact.email || '');
+        const agentName2 = (appState.profile && appState.profile.fullName) ? appState.profile.fullName : (appState.apiConfig.senderId || '');
         personalizedMessage = personalizedMessage.replace(/\{\{firstName\}\}/gi, contact.firstName || '');
         personalizedMessage = personalizedMessage.replace(/\{\{lastName\}\}/gi, contact.lastName || '');
         personalizedMessage = personalizedMessage.replace(/\{\{fullName\}\}/gi, `${contact.firstName || ''} ${contact.lastName || ''}`.trim());
@@ -849,6 +849,13 @@ function sendMessage() {
         personalizedMessage = personalizedMessage.replace(/\{\{email\}\}/gi, contact.email || '');
         personalizedMessage = personalizedMessage.replace(/\{\{address\}\}/gi, contact.address || '');
         personalizedMessage = personalizedMessage.replace(/\{\{suburb\}\}/gi, contact.suburb || '');
+        personalizedMessage = personalizedMessage.replace(/\{\{agentName\}\}/gi, agentName2 || '');
+        personalizedMessage = personalizedMessage.replace(/\{firstname\}/gi, contact.firstName || '');
+        personalizedMessage = personalizedMessage.replace(/\{lastname\}/gi, contact.lastName || '');
+        personalizedMessage = personalizedMessage.replace(/\{fullname\}/gi, `${contact.firstName || ''} ${contact.lastName || ''}`.trim());
+        personalizedMessage = personalizedMessage.replace(/\{phone\}/gi, contact.phone || '');
+        personalizedMessage = personalizedMessage.replace(/\{email\}/gi, contact.email || '');
+        personalizedMessage = personalizedMessage.replace(/\{agentname\}/gi, agentName2 || '');
         
         // Add to messages array
         const sentMessage = {

@@ -22,7 +22,8 @@ export default async function handler(req, res) {
     const path = require('path');
     
     try {
-      const messagesFile = path.join(process.cwd(), 'data', 'incoming-messages.json');
+      // Use /tmp for serverless-compatible temporary storage
+      const messagesFile = path.join('/tmp', 'incoming-messages.json');
       const messagesDir = path.dirname(messagesFile);
       
       // Create directory if it doesn't exist
