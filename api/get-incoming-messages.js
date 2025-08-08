@@ -4,6 +4,19 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Prefer shared KV (Upstash) if configured
+    const useKv = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+    if (useKv) {
+      try {
+        const { kvPopIncomingMessages } = await import('./_utils/kv.js');
+        const popped = await kvPopIncomingMessages(100);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).json({ messages: popped, total: popped.length, unprocessed: popped.length });
+      } catch (kvErr) {
+        console.error('KV read failed, falling back to /tmp:', kvErr);
+      }
+    }
+
     const fs = require('fs');
     const path = require('path');
     
@@ -11,6 +24,7 @@ export default async function handler(req, res) {
     const messagesFile = path.join('/tmp', 'incoming-messages.json');
     
     if (!fs.existsSync(messagesFile)) {
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(200).json({ messages: [] });
     }
     
@@ -30,6 +44,7 @@ export default async function handler(req, res) {
     // Save updated messages
     fs.writeFileSync(messagesFile, JSON.stringify(messages, null, 2));
     
+    res.setHeader('Cache-Control', 'no-store');
     return res.status(200).json({ 
       messages: unprocessedMessages,
       total: messages.length,

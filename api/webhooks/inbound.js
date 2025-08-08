@@ -16,8 +16,32 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
     
-    // Store the message in a simple file-based storage
-    // In a production app, you'd use a database
+    // Build the normalized message object once
+    const newMessage = {
+      id: Date.now(),
+      from: sender,
+      to: to,
+      message: message,
+      timestamp: received_at || new Date().toISOString(),
+      type: type || 'inbound',
+      original_message_id: original_message_id,
+      original_custom_ref: original_custom_ref,
+      processed: false
+    };
+
+    // Try shared Upstash Redis first; fallback to /tmp file so dev/local still works
+    const useKv = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+    if (useKv) {
+      try {
+        const { kvPushIncomingMessage } = await import('../_utils/kv.js');
+        await kvPushIncomingMessage(newMessage);
+        console.log('Message stored in KV');
+      } catch (kvErr) {
+        console.error('KV store failed, falling back to /tmp:', kvErr);
+      }
+    }
+
+    // Always also persist to /tmp to preserve current behavior and for fallback
     const fs = require('fs');
     const path = require('path');
     
@@ -37,20 +61,6 @@ export default async function handler(req, res) {
         const fileContent = fs.readFileSync(messagesFile, 'utf8');
         messages = JSON.parse(fileContent);
       }
-      
-      // Add new message
-      const newMessage = {
-        id: Date.now(),
-        from: sender,
-        to: to,
-        message: message,
-        timestamp: received_at || new Date().toISOString(),
-        type: type || 'inbound',
-        original_message_id: original_message_id,
-        original_custom_ref: original_custom_ref,
-        processed: false
-      };
-      
       messages.push(newMessage);
       
       // Save back to file
