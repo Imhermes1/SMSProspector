@@ -396,6 +396,8 @@ function editContact(contactId) {
     // Pre-fill the form with existing data
     const form = document.getElementById('add-contact-form');
     if (form) {
+      // Switch form into edit mode
+      form.dataset.mode = 'edit';
       form.firstName.value = contact.firstName;
       form.lastName.value = contact.lastName;
       form.phone.value = contact.phone;
@@ -420,11 +422,27 @@ function editContact(contactId) {
 function updateContact(contactId, formData) {
   const contactIndex = appState.contacts.findIndex(c => c.id === contactId);
   if (contactIndex !== -1) {
+    // Prepare updated fields
+    const updatedPhoneRaw = formData.get('phone');
+    const updatedPhone = formatAustralianPhoneNumber(updatedPhoneRaw || '');
+    if (!validateAustralianPhoneNumber(updatedPhone)) {
+      showNotification('Please enter a valid Australian phone number', 'error');
+      return;
+    }
+    // Check duplicate on phone excluding the same contact
+    const duplicate = appState.contacts.find(c => 
+      c.id !== contactId && formatAustralianPhoneNumber(c.phone) === updatedPhone
+    );
+    if (duplicate) {
+      showNotification('A contact with this phone number already exists', 'error');
+      return;
+    }
+
     appState.contacts[contactIndex] = {
       ...appState.contacts[contactIndex],
       firstName: formData.get('firstName'),
       lastName: formData.get('lastName'),
-      phone: formData.get('phone'),
+      phone: updatedPhone,
       email: formData.get('email') || '',
       address: formData.get('address') || '',
       suburb: formData.get('suburb') || '',
