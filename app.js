@@ -2685,8 +2685,8 @@ function startIncomingMessageChecker() {
   // Connect to real-time events
   connectToRealTimeEvents();
   
-  // Fallback: check every 30 seconds as backup
-  setInterval(checkForIncomingMessages, 30000);
+  // Fallback: poll more frequently so replies feel live across instances
+  setInterval(checkForIncomingMessages, 5000);
 }
 
 // Connect to real-time Server-Sent Events
