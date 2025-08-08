@@ -1198,7 +1198,8 @@ select.form-control {
 
 /* Settings Styles */
 .settings-content {
-  max-width: 600px;
+  max-width: 960px;
+  width: 100%;
 }
 
 .api-config {
@@ -1206,6 +1207,7 @@ select.form-control {
   padding: var(--space-24);
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-card-border);
+  width: 100%;
 }
 
 .form-row {
@@ -1943,9 +1945,24 @@ select.form-control {
 }
 
 .message-input-container {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   gap: 0.5rem;
   align-items: flex-end;
+}
+
+/* Template row + quiet hours */
+.template-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.quiet-hours-row {
+  margin-top: 0.5rem;
+  display: flex;
+  gap: 1rem;
 }
 
 .message-input-container textarea {
