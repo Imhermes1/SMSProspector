@@ -30,7 +30,11 @@ export default async function handler(req, res) {
     };
 
     // Try shared Upstash Redis first; fallback to /tmp file so dev/local still works
-    const useKv = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+    let useKv = false;
+    try {
+      const { hasKvEnv } = await import('../_utils/kv.js');
+      useKv = hasKvEnv();
+    } catch {}
     if (useKv) {
       try {
         const { kvPushIncomingMessage } = await import('../_utils/kv.js');

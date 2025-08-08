@@ -69,8 +69,9 @@ export async function kvPopIncomingMessages(count = 100) {
       ['LPOP', 'incoming_messages', String(count)]
     ]);
     const first = Array.isArray(res) ? res[0] : res; // [{ result: [...] }]
-    const items = (first && first.result) ? first.result : [];
-    if (!items || items.length === 0) return [];
+    const raw = (first && first.result) ? first.result : [];
+    const items = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+    if (items.length === 0) return [];
     // Items are JSON strings
     return items.map((s) => {
       try { return JSON.parse(s); } catch { return null; }
