@@ -25,17 +25,17 @@ let appState = {
   templates: [
     {
       id: "intro",
-      name: "Intro — Just sold nearby",
-      text: "Hi {{firstName}}, it’s {{fullName}} from {{suburb}}. We’ve just helped a neighbour and have buyers looking. Would you consider an appraisal? Reply YES for details."
+      name: "Intro - Just sold nearby",
+      text: "Hi {{firstName}}, it's {{fullName}} from {{suburb}}. We've just helped a neighbour and have buyers looking. Would you consider an appraisal? Reply YES for details."
     },
     {
       id: "followup",
-      name: "Follow-up — Still interested?",
-      text: "Hi {{firstName}}, quick one — are you still open to an updated appraisal this month? Happy to pop by."
+      name: "Follow-up - Still interested?",
+      text: "Hi {{firstName}}, quick one - are you still open to an updated appraisal this month? Happy to pop by."
     },
     {
       id: "appraisal",
-      name: "Appraisal — Offer value",
+      name: "Appraisal - Offer value",
       text: "Hi {{firstName}}, I can give you a no-obligation price update based on current buyer demand in {{suburb}}. What day suits?"
     }
   ],
