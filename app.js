@@ -2636,7 +2636,7 @@ function forceRefreshApiStatus() {
 // Check for incoming messages from webhook
 async function checkForIncomingMessages() {
   try {
-    const response = await fetch('/api/get-incoming-messages');
+    const response = await fetch('/api/get-incoming-messages', { cache: 'no-store' });
     const data = await response.json();
     
     if (data.messages && data.messages.length > 0) {

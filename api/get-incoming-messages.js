@@ -7,7 +7,8 @@ export default async function handler(req, res) {
     const fs = require('fs');
     const path = require('path');
     
-    const messagesFile = path.join(process.cwd(), 'data', 'incoming-messages.json');
+    // Read from /tmp to match where the webhook writes in serverless
+    const messagesFile = path.join('/tmp', 'incoming-messages.json');
     
     if (!fs.existsSync(messagesFile)) {
       return res.status(200).json({ messages: [] });
