@@ -1547,6 +1547,7 @@ function renderConversationView() {
         <button class="btn btn--sm btn--outline" onclick="viewContactDetails(${contact.id})">View Contact</button>
         <button class="btn btn--sm btn--outline" onclick="markSelectedConversationAsLead()">Mark as Lead</button>
         <button class="btn btn--sm btn--outline" onclick="toggleArchiveSelectedConversation()">${selectedConversation.archived ? 'Unarchive' : 'Archive'}</button>
+        <button class="btn btn--sm btn--outline" onclick="deleteSelectedConversation()">Delete</button>
       </div>
     `;
   }
@@ -1608,6 +1609,22 @@ function toggleArchiveSelectedConversation() {
   saveConversationsToStorage();
   renderConversationList();
   renderConversationView();
+}
+
+function deleteSelectedConversation() {
+  const selectedConversationId = appState.messengerState.selectedConversation;
+  if (!selectedConversationId) return;
+  const conversation = appState.conversations.find(c => c.id === selectedConversationId);
+  if (!conversation) return;
+  const contact = appState.contacts.find(c => c.id === conversation.contactId);
+  const name = contact ? `${contact.firstName} ${contact.lastName}`.trim() : 'this conversation';
+  if (!confirm(`Delete conversation with ${name}?`)) return;
+  appState.conversations = appState.conversations.filter(c => c.id !== selectedConversationId);
+  appState.messengerState.selectedConversation = null;
+  saveConversationsToStorage();
+  renderConversationList();
+  renderConversationView();
+  showNotification('Conversation deleted', 'success');
 }
 
 function sendReply() {
@@ -2171,6 +2188,7 @@ window.testApiConnection = testApiConnection;
   window.applyReplyTemplate = applyReplyTemplate;
   window.updateCSVMapping = updateCSVMapping;
   window.saveProfile = saveProfile;
+  window.deleteSelectedConversation = deleteSelectedConversation;
 
 // Close modals when clicking outside
 document.addEventListener('click', function(e) {
