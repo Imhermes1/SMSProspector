@@ -4,7 +4,21 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { to, message, sender, received_at, type, original_message_id, original_custom_ref } = req.body;
+    // Support Mobile Message and MessageMedia payloads
+    let to, message, sender, received_at, type, original_message_id, original_custom_ref;
+    if (req.body && (req.body.sender || req.body.to)) {
+      // Mobile Message style
+      ({ to, message, sender, received_at, type, original_message_id, original_custom_ref } = req.body);
+    } else if (req.body && (req.body.destination_number || req.body.source_number || req.body.content)) {
+      // MessageMedia style
+      to = req.body.destination_number;
+      sender = req.body.source_number;
+      message = req.body.content;
+      received_at = req.body.received_timestamp || new Date().toISOString();
+      type = 'inbound';
+      original_message_id = req.body.message_id;
+      original_custom_ref = req.body.metadata && req.body.metadata.custom_ref ? req.body.metadata.custom_ref : undefined;
+    }
     
     // Log the incoming message
     console.log('Inbound message received:', { to, message, sender, received_at, type, original_message_id, original_custom_ref });
@@ -39,7 +53,7 @@ export default async function handler(req, res) {
       // Add new message
       const newMessage = {
         id: Date.now(),
-        from: sender, // Mobile Message sends 'sender' field
+        from: sender,
         to: to,
         message: message,
         timestamp: received_at || new Date().toISOString(),

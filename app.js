@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
   loadAllDataFromStorage();
   loadSettingsFromStorage();
   loadTemplatesFromStorage();
+  loadProfileFromStorage();
   
   initializeNavigation();
   initializeEventListeners();
@@ -168,6 +169,8 @@ function navigateToSection(sectionId) {
     populateIndividualContactSelect();
     updateApiStatusDisplay(); // Update API status when entering Send SMS section
     populateTemplatesUI();
+  } else if (sectionId === 'profile') {
+    renderProfileForm();
   }
 }
 
@@ -428,10 +431,12 @@ function updateContact(contactId, formData) {
       tags: formData.get('tags') ? formData.get('tags').split(',').map(t => t.trim()).filter(t => t) : []
     };
     
+    saveContactsToStorage();
     renderContactsTable();
     populateFilterOptions();
     populateIndividualContactSelect();
     hideModal('add-contact-modal');
+    showNotification('Contact updated', 'success');
   }
 }
 
@@ -1284,14 +1289,17 @@ function showCSVPreviewModal(contacts, mapping) {
   }
   
   if (mappingContainer) {
+    const fields = ['firstName','lastName','phone','email','address','suburb','tags','ignore'];
     mappingContainer.innerHTML = `
       <h4>Column Mapping:</h4>
       <div class="mapping-list">
-        ${Object.entries(mapping).map(([header, field]) => `
+        ${Object.keys(mapping).map(header => `
           <div class="mapping-item">
             <span class="csv-header">${header}</span>
             <span class="arrow">→</span>
-            <span class="field-name">${field}</span>
+            <select class="form-control" onchange="updateCSVMapping('${header}', this.value)">
+              ${fields.map(f => `<option value="${f}" ${mapping[header]===f?'selected':''}>${f}</option>`).join('')}
+            </select>
           </div>
         `).join('')}
       </div>
@@ -1302,6 +1310,67 @@ function showCSVPreviewModal(contacts, mapping) {
   window.csvImportData = { contacts, mapping };
   
   showModal('csv-preview-modal');
+}
+
+function updateCSVMapping(header, value) {
+  if (!window.csvImportData) return;
+  const m = window.csvImportData.mapping || {};
+  m[header] = value === 'ignore' ? null : value;
+  window.csvImportData.mapping = m;
+}
+
+// Profile
+function renderProfileForm() {
+  const p = appState.profile || {};
+  const nameEl = document.getElementById('profile-full-name');
+  const agencyEl = document.getElementById('profile-agency');
+  const suburbEl = document.getElementById('profile-suburb');
+  const senderEl = document.getElementById('profile-sender-id');
+  const qEnabledEl = document.getElementById('profile-quiet-enabled');
+  const qStartEl = document.getElementById('profile-quiet-start');
+  const qEndEl = document.getElementById('profile-quiet-end');
+  if (nameEl) nameEl.value = p.fullName || '';
+  if (agencyEl) agencyEl.value = p.agency || '';
+  if (suburbEl) suburbEl.value = p.suburb || '';
+  if (senderEl) senderEl.value = p.senderId || '';
+  if (qEnabledEl) qEnabledEl.checked = !!appState.settings.quietHoursEnabled;
+  if (qStartEl) qStartEl.value = appState.settings.quietHoursStart || '20:00';
+  if (qEndEl) qEndEl.value = appState.settings.quietHoursEnd || '08:00';
+}
+
+function saveProfile() {
+  const nameEl = document.getElementById('profile-full-name');
+  const agencyEl = document.getElementById('profile-agency');
+  const suburbEl = document.getElementById('profile-suburb');
+  const senderEl = document.getElementById('profile-sender-id');
+  const qEnabledEl = document.getElementById('profile-quiet-enabled');
+  const qStartEl = document.getElementById('profile-quiet-start');
+  const qEndEl = document.getElementById('profile-quiet-end');
+  appState.profile = {
+    fullName: nameEl ? nameEl.value.trim() : '',
+    agency: agencyEl ? agencyEl.value.trim() : '',
+    suburb: suburbEl ? suburbEl.value.trim() : '',
+    senderId: senderEl ? senderEl.value.trim() : ''
+  };
+  appState.settings.quietHoursEnabled = qEnabledEl ? qEnabledEl.checked : false;
+  appState.settings.quietHoursStart = qStartEl ? qStartEl.value : '20:00';
+  appState.settings.quietHoursEnd = qEndEl ? qEndEl.value : '08:00';
+  saveSettingsToStorage();
+  saveProfileToStorage();
+  showNotification('Profile saved', 'success');
+}
+
+function saveProfileToStorage() {
+  try {
+    localStorage.setItem('smsProspectorProfile', JSON.stringify(appState.profile || {}));
+  } catch (e) { console.error(e); }
+}
+
+function loadProfileFromStorage() {
+  try {
+    const saved = localStorage.getItem('smsProspectorProfile');
+    if (saved) appState.profile = JSON.parse(saved);
+  } catch (e) { console.error(e); }
 }
 
 function confirmCSVImport() {
@@ -2072,6 +2141,11 @@ window.testApiConnection = testApiConnection;
   window.addIncomingMessageManually = addIncomingMessageManually;
   window.exportMessagesHistory = exportMessagesHistory;
   window.testWebhook = testWebhook;
+  window.applyTemplate = applyTemplate;
+  window.saveCurrentAsTemplate = saveCurrentAsTemplate;
+  window.applyReplyTemplate = applyReplyTemplate;
+  window.updateCSVMapping = updateCSVMapping;
+  window.saveProfile = saveProfile;
 
 // Close modals when clicking outside
 document.addEventListener('click', function(e) {
