@@ -5,7 +5,11 @@ export default async function handler(req, res) {
 
   try {
     // Prefer shared KV (Upstash) if configured
-    const useKv = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+    let useKv = false;
+    try {
+      const { hasKvEnv } = await import('./_utils/kv.js');
+      useKv = hasKvEnv();
+    } catch {}
     if (useKv) {
       try {
         const { kvPopIncomingMessages } = await import('./_utils/kv.js');

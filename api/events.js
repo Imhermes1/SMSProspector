@@ -5,8 +5,8 @@ export default async function handler(req, res) {
 
   // Set headers for Server-Sent Events
   res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
     'Connection': 'keep-alive',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Cache-Control'

@@ -2695,7 +2695,7 @@ function startIncomingMessageChecker() {
 // Connect to real-time Server-Sent Events
 function connectToRealTimeEvents() {
   try {
-    const eventSource = new EventSource('/api/events');
+    const eventSource = new EventSource('/api/events', { withCredentials: false });
     
     eventSource.onopen = function(event) {
       console.log('Real-time connection established');
@@ -2714,7 +2714,9 @@ function connectToRealTimeEvents() {
         case 'new_message':
           console.log('Real-time message received:', data.data);
           // Add the incoming message to the app
-          addIncomingMessageManually(data.data.from, data.data.message);
+          const phone = data.data.from || data.data.sender || data.data.phone || data.data.to;
+          const text = data.data.message || data.data.text || '';
+          if (phone && text) addIncomingMessageManually(phone, text);
           break;
           
         case 'ping':
