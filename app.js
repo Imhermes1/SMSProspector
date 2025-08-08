@@ -2662,7 +2662,10 @@ async function checkForIncomingMessages() {
       
       data.messages.forEach(msg => {
         // Add each incoming message to the app
-        addIncomingMessageManually(msg.from, msg.message);
+        const phone = msg.from || msg.sender || msg.phone || msg.to; // be defensive
+        const text = msg.message || msg.text || '';
+        if (!phone || !text) return;
+        addIncomingMessageManually(phone, text);
       });
       
       // Show notification

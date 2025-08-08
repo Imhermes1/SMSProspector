@@ -11,6 +11,7 @@ export default async function handler(req, res) {
         const { kvPopIncomingMessages } = await import('./_utils/kv.js');
         const popped = await kvPopIncomingMessages(100);
         res.setHeader('Cache-Control', 'no-store');
+        console.log('[KV] get-incoming-messages popped:', Array.isArray(popped) ? popped.length : 0);
         return res.status(200).json({ messages: popped, total: popped.length, unprocessed: popped.length });
       } catch (kvErr) {
         console.error('KV read failed, falling back to /tmp:', kvErr);
@@ -33,6 +34,7 @@ export default async function handler(req, res) {
     
     // Return unprocessed messages
     const unprocessedMessages = messages.filter(msg => !msg.processed);
+    console.log('[TMP] get-incoming-messages unprocessed:', unprocessedMessages.length);
     
     // Mark messages as processed
     messages.forEach(msg => {
