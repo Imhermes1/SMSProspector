@@ -3,13 +3,31 @@
 // - UPSTASH_REDIS_REST_URL
 // - UPSTASH_REDIS_REST_TOKEN
 
+function getRestUrl() {
+  return (
+    process.env.UPSTASH_REDIS_REST_URL ||
+    process.env.UPSTASH_REDIS_REST_API_URL ||
+    process.env.UPSTASH_REDIS_REST_KV_REST_API_URL ||
+    ''
+  );
+}
+
+function getRestToken() {
+  return (
+    process.env.UPSTASH_REDIS_REST_TOKEN ||
+    process.env.UPSTASH_REDIS_REST_API_TOKEN ||
+    process.env.UPSTASH_REDIS_REST_KV_REST_API_TOKEN ||
+    ''
+  );
+}
+
 export function hasKvEnv() {
-  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  return Boolean(getRestUrl() && getRestToken());
 }
 
 async function upstashPipeline(commands) {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const url = getRestUrl();
+  const token = getRestToken();
   if (!url || !token) throw new Error('Upstash env vars not configured');
 
   const response = await fetch(`${url}/pipeline`, {
