@@ -1039,22 +1039,17 @@ function renderOptOutsTable() {
   const tbody = document.getElementById('opt-outs-table-body');
   if (!tbody) return;
   
-  const optOutsWithContacts = appState.optOuts.map(optOut => {
-    const contact = appState.contacts.find(c => c.id === optOut.contactId);
-    return { ...optOut, contact };
-  });
-  
-  tbody.innerHTML = optOutsWithContacts.map(optOut => `
+  tbody.innerHTML = appState.optOuts.map(optOut => `
     <tr>
-      <td>${optOut.contact ? `${optOut.contact.firstName} ${optOut.contact.lastName}` : 'Unknown'}</td>
-      <td>${optOut.contact ? optOut.contact.phone : 'Unknown'}</td>
-      <td><span class="keyword-badge">${optOut.reason}</span></td>
-      <td>${new Date(optOut.dateOptedOut).toLocaleDateString()}</td>
-      <td>${optOut.originalMessage}</td>
-      <td>${optOut.campaign}</td>
+      <td>${optOut.name || 'N/A'}</td>
+      <td>${optOut.phone || 'N/A'}</td>
+      <td><span class="keyword-badge">${optOut.reason || 'N/A'}</span></td>
+      <td>${optOut.dateOptedOut ? new Date(optOut.dateOptedOut).toLocaleDateString() : 'N/A'}</td>
+      <td>${optOut.originalMessage || 'N/A'}</td>
+      <td>${optOut.campaign || 'N/A'}</td>
       <td>
         <div class="action-buttons">
-          <button class="action-btn edit" onclick="reOptIn(${optOut.contactId})">Re-opt In</button>
+          <button class="action-btn edit" onclick="reOptInByPhone('${optOut.phone}')">Re-opt In</button>
         </div>
       </td>
     </tr>
