@@ -4,7 +4,17 @@ function sendToAllContacts() {
   const allContacts = appState.contacts.filter(c => c.status !== 'opted-out');
   const filteredContacts = filterOptedOutContacts(allContacts);
   appState.selectedContacts = filteredContacts.map(c => c.id);
-  renderContactsTable();
+  // Populate the selected recipients visually
+  const recipientsDiv = document.getElementById('selected-recipients');
+  if (recipientsDiv) {
+    if (filteredContacts.length === 0) {
+      recipientsDiv.innerHTML = '<em>No contacts available to send.</em>';
+    } else {
+      let preview = `<strong>Example:</strong> ${filteredContacts[0].firstName || ''} ${filteredContacts[0].lastName || ''} (${filteredContacts[0].phone})`;
+      let list = filteredContacts.map(c => `${c.firstName || ''} ${c.lastName || ''} (${c.phone})`).join('<br>');
+      recipientsDiv.innerHTML = `${preview}<br><br><details><summary>Show all recipients (${filteredContacts.length})</summary>${list}</details>`;
+    }
+  }
   showNotification(`Selected ${filteredContacts.length} contacts for SMS.`, 'success');
 }
 // Import Opt-Out Contacts from CSV
