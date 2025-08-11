@@ -1218,12 +1218,28 @@ function parseCSVWithMapping(csv) {
         if (field) {
           if (field === 'tags') {
             contact[field] = values[index] ? values[index].split(';').map(t => t.trim()) : [];
+          } else if (field === 'firstName' && !contact.firstName && mapping[header] === 'firstName') {
+            contact[field] = values[index] || '';
+          } else if (header.toLowerCase() === 'name') {
+            // Split 'Name' column into firstName and lastName
+            const nameParts = values[index].trim().split(' ');
+            contact.firstName = nameParts[0] || '';
+            contact.lastName = nameParts.slice(1).join(' ') || '';
           } else {
             contact[field] = values[index] || '';
           }
         }
       });
-      
+      // If no firstName but 'Name' column exists, try to split it
+      if (!contact.firstName && headers.includes('Name')) {
+        const nameIdx = headers.indexOf('Name');
+        const nameVal = values[nameIdx] ? values[nameIdx].trim() : '';
+        if (nameVal) {
+          const nameParts = nameVal.split(' ');
+          contact.firstName = nameParts[0] || '';
+          contact.lastName = nameParts.slice(1).join(' ') || '';
+        }
+      }
       // Validate required fields
       if (contact.firstName && contact.phone) {
         contacts.push(contact);
