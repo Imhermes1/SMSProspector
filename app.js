@@ -1178,12 +1178,18 @@ function processCSVImport() {
   reader.onload = function(e) {
     const csv = e.target.result;
     const result = parseCSVWithMapping(csv);
-    
     if (result.error) {
       showNotification(result.error, 'error');
       return;
     }
-    
+    // Debug: Show mapping and first contact
+    let debugMsg = 'Detected mapping: ' + JSON.stringify(result.mapping);
+    if (result.contacts && result.contacts.length > 0) {
+      debugMsg += '\nFirst contact: ' + JSON.stringify(result.contacts[0]);
+    } else {
+      debugMsg += '\nNo valid contacts detected.';
+    }
+    showNotification(debugMsg, 'info');
     // Show preview modal
     showCSVPreviewModal(result.contacts, result.mapping);
   };
