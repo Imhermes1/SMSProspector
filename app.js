@@ -1190,6 +1190,7 @@ function processCSVImport() {
       debugMsg += '\nNo valid contacts detected.';
     }
     showNotification(debugMsg, 'info');
+    console.log('[CSV Import Debug]', debugMsg);
     // Show preview modal
     showCSVPreviewModal(result.contacts, result.mapping);
   };
