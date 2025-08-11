@@ -16,7 +16,9 @@ function processOptOutCSVImport() {
     }
     const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
     let phoneIdx = headers.findIndex(h => ['phone','mobile','cell','phone number','mobile number'].includes(h.toLowerCase()));
-    let nameIdx = headers.findIndex(h => ['name','first name','firstname','first_name'].includes(h.toLowerCase()));
+    let firstNameIdx = headers.findIndex(h => ['first_name','firstname','first name','fname','given name'].includes(h.toLowerCase()));
+    let lastNameIdx = headers.findIndex(h => ['last_name','lastname','last name','lname','surname','family name'].includes(h.toLowerCase()));
+    let nameIdx = headers.findIndex(h => ['name'].includes(h.toLowerCase()));
     if (phoneIdx === -1) {
       showNotification('CSV must have a phone or mobile column', 'error');
       return;
@@ -25,7 +27,16 @@ function processOptOutCSVImport() {
     for (let i = 1; i < lines.length; i++) {
       const values = lines[i].split(',').map(v => v.trim());
       const phone = values[phoneIdx];
-      const name = nameIdx !== -1 ? values[nameIdx] : '';
+      let name = '';
+      if (firstNameIdx !== -1 && lastNameIdx !== -1) {
+        name = `${values[firstNameIdx]} ${values[lastNameIdx]}`.trim();
+      } else if (firstNameIdx !== -1) {
+        name = values[firstNameIdx];
+      } else if (lastNameIdx !== -1) {
+        name = values[lastNameIdx];
+      } else if (nameIdx !== -1) {
+        name = values[nameIdx];
+      }
       if (phone && !appState.optOuts.some(o => o.phone === phone)) {
         appState.optOuts.push({ name, phone });
         imported++;
