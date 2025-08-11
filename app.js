@@ -1,3 +1,12 @@
+// Select all non-opted-out contacts for SMS
+function sendToAllContacts() {
+  // Filter out opted-out contacts
+  const allContacts = appState.contacts.filter(c => c.status !== 'opted-out');
+  const filteredContacts = filterOptedOutContacts(allContacts);
+  appState.selectedContacts = filteredContacts.map(c => c.id);
+  renderContactsTable();
+  showNotification(`Selected ${filteredContacts.length} contacts for SMS.`, 'success');
+}
 // Import Opt-Out Contacts from CSV
 function processOptOutCSVImport() {
   const fileInput = document.getElementById('optout-csv-file-input');
