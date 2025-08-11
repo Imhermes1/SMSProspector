@@ -1167,34 +1167,43 @@ function processCSVImport() {
     return;
   }
   
-  const file = fileInput.files[0];
-  
-  if (!file) {
-    showNotification('Please select a CSV file', 'error');
+  const files = Array.from(fileInput.files);
+  if (!files.length) {
+    showNotification('Please select at least one CSV file', 'error');
     return;
   }
-  
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const csv = e.target.result;
-    const result = parseCSVWithMapping(csv);
-    if (result.error) {
-      showNotification(result.error, 'error');
-      return;
-    }
-    // Debug: Show mapping and first contact
-    let debugMsg = 'Detected mapping: ' + JSON.stringify(result.mapping);
-    if (result.contacts && result.contacts.length > 0) {
-      debugMsg += '\nFirst contact: ' + JSON.stringify(result.contacts[0]);
-    } else {
-      debugMsg += '\nNo valid contacts detected.';
-    }
-    showNotification(debugMsg, 'info');
-    console.log('[CSV Import Debug]', debugMsg);
-    // Show preview modal
-    showCSVPreviewModal(result.contacts, result.mapping);
-  };
-  reader.readAsText(file);
+  let allContacts = [];
+  let allMappings = {};
+  let filesProcessed = 0;
+  files.forEach((file, idx) => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const csv = e.target.result;
+      const result = parseCSVWithMapping(csv);
+      if (result.error) {
+        showNotification(`File ${file.name}: ${result.error}`, 'error');
+      } else {
+        // Merge contacts and mappings
+        allContacts = allContacts.concat(result.contacts);
+        Object.assign(allMappings, result.mapping);
+        // Debug: Show mapping and first contact for each file
+        let debugMsg = `File ${file.name} - Detected mapping: ` + JSON.stringify(result.mapping);
+        if (result.contacts && result.contacts.length > 0) {
+          debugMsg += '\nFirst contact: ' + JSON.stringify(result.contacts[0]);
+        } else {
+          debugMsg += '\nNo valid contacts detected.';
+        }
+        showNotification(debugMsg, 'info');
+        console.log('[CSV Import Debug]', debugMsg);
+      }
+      filesProcessed++;
+      if (filesProcessed === files.length) {
+        // After all files processed, show combined preview
+        showCSVPreviewModal(allContacts, allMappings);
+      }
+    };
+    reader.readAsText(file);
+  });
 }
 
 function parseCSVWithMapping(csv) {
