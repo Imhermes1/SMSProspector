@@ -16,6 +16,7 @@ function processOptOutCSVImport() {
     }
     const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
     let phoneIdx = headers.findIndex(h => ['phone','mobile','cell','phone number','mobile number'].includes(h.toLowerCase()));
+    let nameIdx = headers.findIndex(h => ['name','first name','firstname','first_name'].includes(h.toLowerCase()));
     if (phoneIdx === -1) {
       showNotification('CSV must have a phone or mobile column', 'error');
       return;
@@ -24,8 +25,9 @@ function processOptOutCSVImport() {
     for (let i = 1; i < lines.length; i++) {
       const values = lines[i].split(',').map(v => v.trim());
       const phone = values[phoneIdx];
-      if (phone && !appState.optOuts.includes(phone)) {
-        appState.optOuts.push(phone);
+      const name = nameIdx !== -1 ? values[nameIdx] : '';
+      if (phone && !appState.optOuts.some(o => o.phone === phone)) {
+        appState.optOuts.push({ name, phone });
         imported++;
       }
     }
@@ -44,7 +46,7 @@ function saveOptOutsToStorage() {
 
 // Smart filter: Prevent opted-out contacts from being added to message recipients
 function filterOptedOutContacts(contacts) {
-  return contacts.filter(c => !appState.optOuts.includes(c.phone));
+  return contacts.filter(c => !appState.optOuts.some(o => o.phone === c.phone));
 }
 
 // Example usage: When selecting contacts for messaging
