@@ -1,3 +1,54 @@
+// Import Opt-Out Contacts from CSV
+function processOptOutCSVImport() {
+  const fileInput = document.getElementById('optout-csv-file-input');
+  const file = fileInput ? fileInput.files[0] : null;
+  if (!file) {
+    showNotification('Please select a CSV file', 'error');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const csv = e.target.result;
+    const lines = csv.split('\n').filter(line => line.trim());
+    if (lines.length < 2) {
+      showNotification('CSV file must have at least a header row and one data row', 'error');
+      return;
+    }
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    let phoneIdx = headers.findIndex(h => ['phone','mobile','cell','phone number','mobile number'].includes(h.toLowerCase()));
+    if (phoneIdx === -1) {
+      showNotification('CSV must have a phone or mobile column', 'error');
+      return;
+    }
+    let imported = 0;
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim());
+      const phone = values[phoneIdx];
+      if (phone && !appState.optOuts.includes(phone)) {
+        appState.optOuts.push(phone);
+        imported++;
+      }
+    }
+    saveOptOutsToStorage();
+    renderOptOutsTable();
+    showNotification(`Imported ${imported} opt-out contacts.`, 'success');
+    hideModal('optout-import-modal');
+  };
+  reader.readAsText(file);
+}
+
+// Save opt-outs to localStorage
+function saveOptOutsToStorage() {
+  localStorage.setItem('optOuts', JSON.stringify(appState.optOuts));
+}
+
+// Smart filter: Prevent opted-out contacts from being added to message recipients
+function filterOptedOutContacts(contacts) {
+  return contacts.filter(c => !appState.optOuts.includes(c.phone));
+}
+
+// Example usage: When selecting contacts for messaging
+// appState.selectedContacts = filterOptedOutContacts(appState.selectedContacts);
 // Application State
 let appState = {
   contacts: [],
@@ -329,7 +380,22 @@ function populateFilterOptions() {
 
 function updateSelectedContacts() {
   const checkboxes = document.querySelectorAll('.contact-checkbox:checked');
-  appState.selectedContacts = Array.from(checkboxes).map(cb => parseInt(cb.dataset.contactId));
+  let selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.dataset.contactId));
+  const selectedContactsData = appState.contacts.filter(c => selectedIds.includes(c.id));
+  // Detect and auto-move opted-out contacts
+  const filteredContacts = filterOptedOutContacts(selectedContactsData);
+  const removedContacts = selectedContactsData.filter(c => !filteredContacts.includes(c));
+  removedContacts.forEach(c => {
+    if (c.phone && !appState.optOuts.includes(c.phone)) {
+      appState.optOuts.push(c.phone);
+    }
+  });
+  if (removedContacts.length > 0) {
+    saveOptOutsToStorage();
+    renderOptOutsTable();
+    showNotification(`${removedContacts.length} contact(s) detected as opted out and moved to Opt-Outs section.`, 'info');
+  }
+  appState.selectedContacts = filteredContacts.map(c => c.id);
   
   const bulkActions = document.getElementById('bulk-actions');
   const selectedCount = document.getElementById('selected-count');
